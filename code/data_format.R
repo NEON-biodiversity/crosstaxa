@@ -26,27 +26,27 @@ dat %>%
 head(dat)
 
 
-<<<<<<< HEAD
+
 #salamander data----
 
 #individual svl measurements
-=======
+
 #salamander data
 
->>>>>>> 02581cbde9e545b42f77b6c8ed5ececc58516443
+
 sal_SVL<-read.csv("./data/MasterSVLData.csv")
 
 head(sal_SVL)
 
-<<<<<<< HEAD
+
 #sire data
-=======
->>>>>>> 02581cbde9e545b42f77b6c8ed5ececc58516443
+
+
 sal_site<-read.csv("./data/sitedata.csv")
 
 head(sal_site)
 
-<<<<<<< HEAD
+
 #rename latitude and longitude column names in sal_site to match sal_SVL
 sal_site<-dplyr::rename(sal_site,
               Latitude = Lat2,
@@ -66,10 +66,4 @@ final_site<-sal_site[sal_site$lat_long %in% singletons, ]
 
 
 
-=======
-rename(sal_site$Latitude2 = Latitude), Longitude2 = Longitude)
 
-dplyr::rename(sal_site,
-  Latitude = Latitude2, # better naming conventions
-  Longitude = Longitude2)
->>>>>>> 02581cbde9e545b42f77b6c8ed5ececc58516443
