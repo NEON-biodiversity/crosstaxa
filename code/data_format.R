@@ -52,18 +52,27 @@ sal_site<-dplyr::rename(sal_site,
               Latitude = Lat2,
               Longitude = Long2)
 
-#make a new column for a concatination of lat and long called lat_long 
+#make a new column from a concatination of lat and long called lat_long for the site data set
 sal_site <- sal_site%>% mutate(
             lat_long = paste(Latitude, Longitude, sep = "_"))
 
-#look for duplicates
+#make a new column from a concatination of lat and long called lat_long for the svl data set
+sal_SVL <- sal_SVL%>% mutate(
+  lat_long = paste(Latitude, Longitude, sep = "_"))
+
+#number of lat/longs in SVL data = 3907
+length(unique(sal_SVL$lat_long))
+
+#number of unique lat/longs in site data = 4475
 length(unique(sal_site$lat_long))
+
+# duplicated lat/longs in site data = 87 (some may be triplicate)
 sal_site$lat_long[duplicated(sal_site$lat_long)]
 
-#filter out all duplicate rows (i.e., both pairs of the duplicate)
+#filter out all duplicate rows (i.e., both pairs of the duplicate) from the site data
 singletons <- names(which(table(sal_site$lat_long) == 1))
 final_site<-sal_site[sal_site$lat_long %in% singletons, ]
 
-
-
+#filter out all duplicate rows (i.e., both pairs of the duplicate) from the svl data
+final_svl<-sal_SVL[sal_SVL$lat_long %in% singletons, ]
 
