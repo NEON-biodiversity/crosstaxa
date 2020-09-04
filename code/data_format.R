@@ -3,7 +3,8 @@
 library(dplyr)
 library(tidyr)
 library(plyr)
-
+library(Ostats)
+devtools::install_github('NEON-biodiversity/Ostats')
 
 
 
@@ -19,7 +20,7 @@ sal_SVL<-read.csv("./data/MasterSVLData.csv")
 head(sal_SVL)
 
 
-#sire data
+#site data
 
 
 sal_site<-read.csv("./data/sitedata.csv")
@@ -27,27 +28,7 @@ sal_site<-read.csv("./data/sitedata.csv")
 head(sal_site)
 
 
-#prep data for OSTATs----
-# Load data from Read et al. (2018) from Figshare web archive
-dat <- read.csv('https://ndownloader.figshare.com/files/9167548')
 
-
-# Keep only sites "HARV" and "JORN" using the filter function, and select the relevant columns required  # by the function.
-# Use the mutate function to add a new column named "log_weight" to log-transform the measurements.
-
-dat <- dat %>%
-  filter(siteID %in% c('HARV','JORN')) %>%
-  select(siteID, taxonID, weight) %>%
-  filter(!is.na(weight)) %>%
-  mutate(log_weight = log10(weight))
-
-# Group the data by siteID and taxonID and look at the summary 
-dat %>%
-  group_by(siteID, taxonID) %>%
-  slice(1)
-
-#look at data that is input for OSTATS functions
-head(dat)
 
 #rename latitude and longitude column names in sal_site to match sal_SVL
 sal_site<-dplyr::rename(sal_site,
@@ -83,3 +64,54 @@ head(final_site)
 #joing site data and svl data
 svl_site<-left_join(final_svl, final_site[,-(1:2),], by = "lat_long")  
 head(svl_site)
+
+svl_site %>%
+group_by(SITE,ID)%>%
+
+within(svl_site, { count <- ave(SITE, ID, FUN=function(x) length(unique(x)))}))  
+
+
+
+VV<-ddply(svl_site, .(SITE), mutate, count = length(unique(ID)))
+head(VV)
+mutate(richness = unique(ID))
+  
+group_by(name, type) %>%
+  mutate(count = n())
+
+ 
+  summarise(
+    rich = unique(ID),
+  )
+
+head(svl_site)
+
+#prep data for OSTATs----
+# Load data from Read et al. (2018) from Figshare web archive
+#dat <- read.csv('https://ndownloader.figshare.com/files/9167548')
+
+
+#  filter for only 3 sites to test then select the relevant columns required by the function site, id, svl.
+# Use the mutate function to add a new column named "log_SVL" to log-transform the measurements.
+
+dat <- svl_site %>%
+  filter(SITE %in% c('83','1256', '2544')) %>%
+  select(SITE, ID, SVL) %>%
+  filter(!is.na(SVL)) %>%
+  mutate(log_SVL = log10(SVL))
+
+# Group the data by siteID and taxonID and look at the summary 
+dat %>%
+  group_by(SITE, ID) %>%
+  slice(1)
+
+#look at data that is input for OSTATS functions
+head(dat)
+
+
+#run Ostats function: copied from vingette
+
+Ostats_example <- Ostats(traits = as.matrix(dat[,'log_SVL']),
+                         sp = factor(dat$ID),
+                         plots = factor(dat$SITE),
+                         data_type = "linear")
