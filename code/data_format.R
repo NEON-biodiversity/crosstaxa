@@ -75,4 +75,7 @@ final_site<-sal_site[sal_site$lat_long %in% singletons, ]
 
 #filter out all duplicate rows (i.e., both pairs of the duplicate) from the svl data
 final_svl<-sal_SVL[sal_SVL$lat_long %in% singletons, ]
+head(final_site)
 
+svl_site<-left_join(final_svl, final_site[,-(1:2),], by = "lat_long")  
+head(svl_site)
