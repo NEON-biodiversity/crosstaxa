@@ -71,13 +71,14 @@ group_by(SITE,ID)%>%
   
 
 
-#works to get species counts per site
-VV<-ddply(svl_site, .(SITE), mutate, count = length(unique(ID)))
+#works to get species counts per site and filter out sites with < 2 species
+svl_site_filt<-ddply(svl_site, .(SITE), mutate, count = length(unique(ID)))%>%
+  filter(count >1)
 
-head(VV)
+head(svl_site_filt)
 
 
-head(svl_site)
+
 
 #prep data for OSTATs----
 # Load data from Read et al. (2018) from Figshare web archive
@@ -87,8 +88,8 @@ head(svl_site)
 #  filter for only 3 sites to test then select the relevant columns required by the function site, id, svl.
 # Use the mutate function to add a new column named "log_SVL" to log-transform the measurements.
 
-dat <- svl_site %>%
-  filter(SITE %in% c('83','1256', '2544')) %>%
+dat <- svl_site_filt %>%
+  filter(SITE %in% c('10','505', '1468'))%>% 
   select(SITE, ID, SVL) %>%
   filter(!is.na(SVL)) %>%
   mutate(log_SVL = log10(SVL))
@@ -108,3 +109,9 @@ Ostats_example <- Ostats(traits = as.matrix(dat[,'log_SVL']),
                          sp = factor(dat$ID),
                          plots = factor(dat$SITE),
                          data_type = "linear")
+
+
+#Work on plotting
+
+Ostats_plot(indiv_dat = dat, siteID = SITE, taxonID = ID, trait = trait, overlap_dat = overlap_dat, sites2use = sites2use, name_x = 'Body Weight (log-transformed)', means=T)
+
