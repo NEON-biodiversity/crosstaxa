@@ -68,21 +68,14 @@ head(svl_site)
 svl_site %>%
 group_by(SITE,ID)%>%
 
-within(svl_site, { count <- ave(SITE, ID, FUN=function(x) length(unique(x)))}))  
-
-
-
-VV<-ddply(svl_site, .(SITE), mutate, count = length(unique(ID)))
-head(VV)
-mutate(richness = unique(ID))
   
-group_by(name, type) %>%
-  mutate(count = n())
 
- 
-  summarise(
-    rich = unique(ID),
-  )
+
+#works to get species counts per site
+VV<-ddply(svl_site, .(SITE), mutate, count = length(unique(ID)))
+
+head(VV)
+
 
 head(svl_site)
 
