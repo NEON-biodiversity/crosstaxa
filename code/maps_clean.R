@@ -4,21 +4,37 @@ library(tidyverse)
 library(spData)
 library(sf)
 library(lubridate)
-HHH
 
-load("MAPSexport.Rdata")
 
+#loading R data file for maps data
+load("./data/MAPSexport.Rdata")
+
+#make a tibble
 dat = lapply(maps.data, as_tibble)
-rm(maps.data)
+
+rm(maps.data)#why remove maps data because its o big and will slow things down?
+
+head(dat)
 dat$band
-n_distinct(dat$band$SPEC)
+
+n_distinct(dat$band$SPEC)# calculate the species richness
+
+#data year range (1989-2017)
 range(dat$band$DATE)
+
+#data weight range (4.1g-353.4g) and histogram
 range(dat$band$WEIGHT)
 hist(dat$band$WEIGHT)
+
+#rename year columns and make yr2 (year number in data set) and log mass columns
 dat$band = mutate(dat$band, mass_g_log10 = log10(WEIGHT),
                   yr = year(DATE),
                   yr2 = yr - min(yr))
+
+#histogram of log weight
 hist(dat$band$mass_g_log10)
+
+#I am guessing this is individual plots for each species? look into it
 
 # pdf("mass.pdf", width = 8, height = 5, onefile = T)
 # for(i in unique(dat$band$SPEC)){
@@ -36,14 +52,20 @@ hist(dat$band$mass_g_log10)
 # }
 # dev.off()
 
-# remove species with < 10 observations
-names(dat$band) = tolower(names(dat$band))
+# remove species with < 10 observations (ten individual observations? of at 10 sites?)
+names(dat$band) = tolower(names(dat$band))#change to lowercase
+
+
 sp_rm = group_by(dat$band, spec) %>% 
   tally() %>% 
   filter(n < 10) %>% 
   pull(spec) %>% as.character()
+
 dat$band = filter(dat$band, !spec %in% sp_rm)
 n_distinct(dat$band$spec) # 267 species
+
+?tolower
+
 # remove outliers
 rm_outlier = function(d, trim_pct = 0.1){
   t_mean = mean(d$weight, na.rm = TRUE, trim = trim_pct)
