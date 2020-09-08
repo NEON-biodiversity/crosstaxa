@@ -113,5 +113,6 @@ Ostats_example <- Ostats(traits = as.matrix(dat[,'log_SVL']),
 
 #Work on plotting
 
-Ostats_plot(indiv_dat = dat, siteID = SITE, taxonID = ID, trait = trait, overlap_dat = overlap_dat, sites2use = sites2use, name_x = 'Body Weight (log-transformed)', means=T)
+sites2use<-c('10','505','1468')
+Ostats_plot(indiv_dat = dat, siteID = dat$SITE, taxonID = dat$ID, trait = dat$log_SVL, overlap_dat = Ostats_example, sites2use = sites2use, name_x = 'SVL (log-transformed)', means=T)
 
