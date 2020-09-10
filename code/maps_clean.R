@@ -52,10 +52,11 @@ hist(dat$band$mass_g_log10)
 # }
 # dev.off()
 
-# remove species with < 10 observations (ten individual observations? of at 10 sites?)
+
+#change column names to lowercase
 names(dat$band) = tolower(names(dat$band))#change to lowercase
 
-
+# remove species with < 10 observations (ten individual observations? of at 10 sites?)
 sp_rm = group_by(dat$band, spec) %>% 
   tally() %>% 
   filter(n < 10) %>% 
