@@ -134,6 +134,37 @@ north_ame_p +
   geom_point(data = summ_loc, aes(x = DECLNG, y = DECLAT, color = n_sp))
 
 
+#############################################################################
+#############################################################################
+#data formatting for OSTATS (FROM data_format.R script)
 
+#works to get species counts per site (combining across years for now) and filter out sites with < 2 species
+bird_site_filt<-ddply(dat$band, .(station), mutate,  count = length(unique(spec)))%>%
+  filter(count >1)
+
+##stopped here, ready to run ostats
+
+
+#prep data for OSTATs----
+# Load data from Read et al. (2018) from Figshare web archive
+#dat <- read.csv('https://ndownloader.figshare.com/files/9167548')
+
+
+#  filter for only 3 sites to test then select the relevant columns required by the function site, id, svl.
+# Use the mutate function to add a new column named "log_SVL" to log-transform the measurements.
+
+dat <- bird_site_filt %>%
+  filter(SITE %in% c('10','505', '1468'))%>% 
+  select(SITE, ID, SVL) %>%
+  filter(!is.na(SVL)) %>%
+  mutate(log_SVL = log10(SVL))
+
+# Group the data by siteID and taxonID and look at the summary 
+dat %>%
+  group_by(SITE, ID) %>%
+  slice(1)
+
+#look at data that is input for OSTATS functions
+head(dat)
 
 
