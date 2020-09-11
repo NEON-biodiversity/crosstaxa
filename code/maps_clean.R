@@ -56,18 +56,20 @@ hist(dat$band$mass_g_log10)
 #change column names to lowercase
 names(dat$band) = tolower(names(dat$band))#change to lowercase
 
-# remove species with < 10 observations (ten individual observations? of at 10 sites?)
+# Identify species with < 10 observations (ten individual observations acoss the entire data set) needs to be 10 per site (or per year)
 sp_rm = group_by(dat$band, spec) %>% 
   tally() %>% 
   filter(n < 10) %>% 
   pull(spec) %>% as.character()
 
 dat$band = filter(dat$band, !spec %in% sp_rm)
+
 n_distinct(dat$band$spec) # 267 species
 
-?tolower
 
-# remove outliers
+
+
+# remove outliers function (why trim=.1, why .25 and 2 *mean?)
 rm_outlier = function(d, trim_pct = 0.1){
   t_mean = mean(d$weight, na.rm = TRUE, trim = trim_pct)
   min_mass = t_mean * 0.25
@@ -77,6 +79,8 @@ rm_outlier = function(d, trim_pct = 0.1){
   d2
 }
 
+
+#remove the outliers
 dat_weight = group_by(dat$band, spec) %>% 
   do(rm_outlier(.)) %>% ungroup()
 
@@ -100,23 +104,32 @@ dat_weight = group_by(dat$band, spec) %>%
 # mod_1 = lmer(mass_g_log10 ~ yr2 + (1|spec) + (1|loc/station) + (0 + yr|spec), data = dat_weight)
 # summary(mod_1)
 
+
+#summary table for each station including # of years sampled, avg. mass, species richness
 summ_loc = group_by(dat_weight, loc, station) %>% 
   summarise(n_yr = n_distinct(year(date)),
             n_sp = n_distinct(spec),
-            ave_mess = mean(weight, na.rm = T)) %>% 
+            ave_mass = mean(weight, na.rm = T)) %>% 
   ungroup() %>% 
-  left_join(rename(dat$stations, loc = LOC, station = STATION), by = c("loc", "station"))
+  left_join(rename(dat$stations, loc = LOC, station = STATION), by = c("loc", "station"))#join to station data
 
+#histogram of years sampled across locations
+hist(summ_loc$n_yr)
+
+
+#maps of locations
 north_ame = spData::world %>% 
   filter(continent == "North America")
 north_ame_p = ggplot() +
   geom_sf(data = north_ame)
 
-hist(summ_loc$n_yr)
 
+#map colored by sampling years
 north_ame_p +
   geom_point(data = summ_loc, aes(x = DECLNG, y = DECLAT, color = n_yr))
 
+
+#map colored by sampling years
 north_ame_p +
   geom_point(data = summ_loc, aes(x = DECLNG, y = DECLAT, color = n_sp))
 
