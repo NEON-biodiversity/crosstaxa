@@ -35,11 +35,11 @@ sal_site<-dplyr::rename(sal_site,
               Latitude = Lat2,
               Longitude = Long2)
 
-#make a new column from a concatination of lat and long called lat_long for the site data set
+#make a new column from a concatenation of lat and long called lat_long for the site data set
 sal_site <- sal_site%>% mutate(
             lat_long = paste(Latitude, Longitude, sep = "_"))
 
-#make a new column from a concatination of lat and long called lat_long for the svl data set
+#make a new column from a concatenation of lat and long called lat_long for the svl data set
 sal_SVL <- sal_SVL%>% mutate(
   lat_long = paste(Latitude, Longitude, sep = "_"))
 
@@ -65,11 +65,6 @@ head(final_site)
 svl_site<-left_join(final_svl, final_site[,-(1:2),], by = "lat_long")  
 head(svl_site)
 
-svl_site %>%
-group_by(SITE,ID)%>%
-
-  
-
 
 #works to get species counts per site and filter out sites with < 2 species
 svl_site_filt<-ddply(svl_site, .(SITE), mutate, count = length(unique(ID)))%>%
@@ -89,7 +84,7 @@ head(svl_site_filt)
 # Use the mutate function to add a new column named "log_SVL" to log-transform the measurements.
 
 dat <- svl_site_filt %>%
-  filter(SITE %in% c('10','505', '1468'))%>% 
+  #filter(SITE %in% c('14','83', '1473'))%>% 
   select(SITE, ID, SVL) %>%
   filter(!is.na(SVL)) %>%
   mutate(log_SVL = log10(SVL))
@@ -113,6 +108,6 @@ Ostats_example <- Ostats(traits = as.matrix(dat[,'log_SVL']),
 
 #Work on plotting
 
-sites2use<-c('10','505','1468')
-Ostats_plot(indiv_dat = dat, siteID = dat$SITE, taxonID = dat$ID, trait = dat$log_SVL, overlap_dat = Ostats_example, sites2use = sites2use, name_x = 'SVL (log-transformed)', means=T)
-
+sites2use<-c('14','83', '1473')
+Ostats_plot(indiv_dat = dat, plots = dat$SITE, sp = dat$ID, trait = dat$log_SVL, overlap_dat = Ostats_example, sites2use = sites2use, name_x = 'SVL (log-transformed)', means=T)
+?Ostats_plot
