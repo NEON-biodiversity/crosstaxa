@@ -116,7 +116,9 @@ final_output<-ostats_output%>%
               mutate(SITE = as.integer(row.names(ostats_output)))%>%#give Ostats output a site id column from the current rownames
               left_join(.,final_site, by = "SITE") #join site data to ostats_output
   
+#missing elevation grrrrrrrrrrrrrrrrrr
 
+mod<-lm(overlaps_norm~elevation, data=final_output)
 
 ####Work on plotting
 
