@@ -35,13 +35,14 @@ sal_site<-dplyr::rename(sal_site,
               Latitude = Lat2,
               Longitude = Long2)
 
-#make a new column from a concatenation of lat and long called lat_long for the site data set
-sal_site <- sal_site%>% mutate(
-            lat_long = paste(Latitude, Longitude, sep = "_"))
 
 #make a new column from a concatenation of lat and long called lat_long for the svl data set
 sal_SVL <- sal_SVL%>% mutate(
-  lat_long = paste(Latitude, Longitude, sep = "_"))
+           lat_long = paste(Latitude, Longitude, sep = "_"))
+
+#make a new column from a concatenation of lat and long called lat_long for the site data set
+sal_site <- sal_site%>% mutate(
+            lat_long = paste(Latitude, Longitude, sep = "_"))
 
 #number of lat/longs in SVL data = 3907
 length(unique(sal_SVL$lat_long))
@@ -105,8 +106,19 @@ Ostats_example <- Ostats(traits = as.matrix(dat[,'log_SVL']),
                          plots = factor(dat$SITE),
                          data_type = "linear")
 
+#make ostats a data frame
 
-#Work on plotting
+ostats_output<-as.data.frame(Ostats_example)
+
+#give Ostats output a site id column from the current rownames
+
+final_output<-ostats_output%>%
+              mutate(SITE = as.integer(row.names(ostats_output)))%>%#give Ostats output a site id column from the current rownames
+              left_join(.,final_site, by = "SITE") #join site data to ostats_output
+  
+
+
+####Work on plotting
 
 sites2use<-c('14','83', '1473')
 Ostats_plot(indiv_dat = dat, plots = dat$SITE, sp = dat$ID, trait = dat$log_SVL, overlap_dat = Ostats_example, sites2use = sites2use, name_x = 'SVL (log-transformed)', means=T)
