@@ -53,16 +53,22 @@ length(unique(sal_site$lat_long))
 # duplicated lat/longs in site data = 87 (some may be triplicate)
 sal_site$lat_long[duplicated(sal_site$lat_long)]
 
+length(names(which(table(sal_site$lat_long) > 1)) #this says 80
+
 #filter out all duplicate rows (i.e., both pairs of the duplicate) from the site data
 singletons <- names(which(table(sal_site$lat_long) == 1))
 final_site<-sal_site[sal_site$lat_long %in% singletons, ]
 
+length(names(which(table(final_site$lat_long) > 1)))
+
+
 #filter out all duplicate rows (i.e., both pairs of the duplicate) from the svl data
 final_svl<-sal_SVL[sal_SVL$lat_long %in% singletons, ]
-head(final_site)
+head(final_svl)
 
 
-#joing site data and svl data
+
+#join site data and svl data, this has all the env data attached to single measurements
 svl_site<-left_join(final_svl, final_site[,-(1:2),], by = "lat_long")  
 head(svl_site)
 
@@ -73,8 +79,12 @@ svl_site_filt<-ddply(svl_site, .(SITE), mutate, count = length(unique(ID)))%>%
 
 head(svl_site_filt)
 
-
-
+#try to get an env data set where there is one row per site. this will be used for post-ostats analysis.
+site_env<-svl_site_filt%>%
+          select (-c(USNM, SVL,ID))%>%
+          distinct(.)
+  
+          
 
 #prep data for OSTATs----
 # Load data from Read et al. (2018) from Figshare web archive
