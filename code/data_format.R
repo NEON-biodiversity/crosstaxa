@@ -40,31 +40,41 @@ sal_site<-dplyr::rename(sal_site,
 sal_SVL <- sal_SVL%>% mutate(
            lat_long = paste(Latitude, Longitude, sep = "_"))
 
+#number of lat/longs in SVL data = 3907
+length(unique(sal_SVL$lat_long))
+
 #make a new column from a concatenation of lat and long called lat_long for the site data set
 sal_site <- sal_site%>% mutate(
             lat_long = paste(Latitude, Longitude, sep = "_"))
 
-#number of lat/longs in SVL data = 3907
-length(unique(sal_SVL$lat_long))
 
-#number of unique lat/longs in site data = 4475
-length(unique(sal_site$lat_long))
 
-# duplicated lat/longs in site data = 87 (some may be triplicate)
-sal_site$lat_long[duplicated(sal_site$lat_long)]
+#number of unique lat/longs in site data = 4475 - number of toal lat/longs (4562) = 87
+length(sal_site$lat_long)-length(unique(sal_site$lat_long))
 
-length(names(which(table(sal_site$lat_long) > 1)) #this says 80
+
+
+
+
+
+# duplicated lat/longs in site data = 80 
+length(names(which(table(sal_site$lat_long) > 1))) 
+
+
 
 #filter out all duplicate rows (i.e., both pairs of the duplicate) from the site data
 singletons <- names(which(table(sal_site$lat_long) == 1))
 final_site<-sal_site[sal_site$lat_long %in% singletons, ]
 
-length(names(which(table(final_site$lat_long) > 1)))
+length(names(which(table(final_site$lat_long) > 1)))#show that there are no duplicate lat_longs in "final_site"
 
 
 #filter out all duplicate rows (i.e., both pairs of the duplicate) from the svl data
-final_svl<-sal_SVL[sal_SVL$lat_long %in% singletons, ]
+final_svl<-sal_SVL[sal_SVL$lat_long %in% final_site$lat_long, ]
 head(final_svl)
+
+length(unique(final_svl$lat_long))
+
 
 
 
@@ -72,19 +82,33 @@ head(final_svl)
 svl_site<-left_join(final_svl, final_site[,-(1:2),], by = "lat_long")  
 head(svl_site)
 
+length(unique(svl_site$lat_long))
+
+
+#merge site and elevation to make a unique identifer for each site because some sites have the same site # but different elevations
+svl_site_merged <- svl_site%>% mutate(
+  SITE2 = paste(SITE, Elevation, sep = "_"))
+
+length(unique(svl_site_merged$SITE2))
+
+
+
 
 #works to get species counts per site and filter out sites with < 2 species
-svl_site_filt<-ddply(svl_site, .(SITE), mutate, count = length(unique(ID)))%>%
+svl_site_filt<-ddply(svl_site_merged, .(SITE2), mutate, count = length(unique(ID)))%>%
   filter(count >1)
 
 head(svl_site_filt)
 
+length(duplicated(svl_site_filt$SITE))
+
 #try to get an env data set where there is one row per site. this will be used for post-ostats analysis.
-site_env<-svl_site_filt%>%
-          select (-c(USNM, SVL,ID))%>%
+site_vars<-svl_site_filt%>%
+          select (-c(USNM, SVL,ID))%>%#####problem here is that there are other vars that diffeer e.g.count. do count after? and drop others
           distinct(.)
   
-          
+length(unique(site_vars$SITE2)) #####problem here is 
+length(site_env$SITE)  
 
 #prep data for OSTATs----
 # Load data from Read et al. (2018) from Figshare web archive
