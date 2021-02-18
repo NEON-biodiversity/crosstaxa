@@ -133,7 +133,7 @@ dat %>%
 head(dat)
 
 
-#run Ostats function: copied from vingette
+####run Ostats function: copied from vignette####
 
 Ostats_example <- Ostats(traits = as.matrix(dat[,'log_SVL']),
                          sp = factor(dat$ID),
