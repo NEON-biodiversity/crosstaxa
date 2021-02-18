@@ -157,15 +157,16 @@ final_output<-ostats_output%>%
 overlap<-read.csv("outputs/ostats_outputv1.csv")
 overlap2<-na.omit(overlap)#remove rows with NA
 
-mod<-lm(overlaps_norm~Richness, data=overlap2)
+mod<-lm(overlaps_norm~BIO1+Elevation+Latitude, data=overlap2)
 summary(mod)
 plot(mod)
 plot(overlap2$Richness, overlap2$overlaps_norm)
 
 
-ggplot(overlap2, aes(x=Richness, y=overlaps_norm)) + 
+ggplot(overlap2, aes(x=BIO1, y=overlaps_norm)) + 
   geom_point()+
   geom_smooth(method=lm)
+
 
 
 ####Work on plotting
