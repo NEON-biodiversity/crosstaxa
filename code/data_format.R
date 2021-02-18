@@ -4,6 +4,7 @@ library(dplyr)
 library(tidyr)
 library(plyr)
 library(Ostats)
+library(ggplot2)
 devtools::install_github('NEON-biodiversity/Ostats')
 
 
@@ -149,10 +150,23 @@ ostats_output<-as.data.frame(Ostats_example)
 final_output<-ostats_output%>%
               mutate(SITE = as.integer(row.names(ostats_output)))%>%#give Ostats output a site id column from the current rownames
               left_join(.,final_site, by = "SITE") #join site data to ostats_output
+ #need code here to save out OSTATS
   
-#missing elevation grrrrrrrrrrrrrrrrrr
+####Analyze ostats output####
 
-mod<-lm(overlaps_norm~elevation, data=final_output)
+overlap<-read.csv("outputs/ostats_outputv1.csv")
+overlap2<-na.omit(overlap)#remove rows with NA
+
+mod<-lm(overlaps_norm~Richness, data=overlap2)
+summary(mod)
+plot(mod)
+plot(overlap2$Richness, overlap2$overlaps_norm)
+
+
+ggplot(overlap2, aes(x=Richness, y=overlaps_norm)) + 
+  geom_point()+
+  geom_smooth(method=lm)
+
 
 ####Work on plotting
 
