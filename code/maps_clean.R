@@ -113,6 +113,21 @@ summ_loc = group_by(dat_weight, loc, station) %>%
   ungroup() %>% 
   left_join(rename(dat$stations, loc = LOC, station = STATION), by = c("loc", "station"))#join to station data
 
+?year
+#break apart function
+a= group_by(dat_weight, loc, station) 
+b=summarise(a,n_yr = n_distinct(year(date)))
+              ,
+            n_sp = n_distinct(spec),
+            ave_mass = mean(weight, na.rm = T)) %>% 
+  ungroup() %>% 
+  left_join(rename(dat$stations, loc = LOC, station = STATION), by = c("loc", "station"))#join to station data
+
+
+
+
+
+
 #histogram of years sampled across locations
 hist(summ_loc$n_yr)
 
