@@ -56,7 +56,7 @@ hist(dat$band$mass_g_log10)
 #change column names to lowercase
 names(dat$band) = tolower(names(dat$band))#change to lowercase
 
-# Identify species with < 10 observations (ten individual observations acoss the entire data set) needs to be 10 per site (or per year)
+# Identify species with < 10 observations (ten individual observations across the entire data set) needs to be 10 per site (or per year)
 sp_rm = group_by(dat$band, spec) %>% 
   tally() %>% 
   filter(n < 10) %>% 
@@ -116,15 +116,14 @@ summ_loc = group_by(dat_weight, loc, station) %>%
 ?year
 #break apart function
 a= group_by(dat_weight, loc, station) 
-b=summarise(a,n_yr = n_distinct(year(date)))
-              ,
+b=summarise(a,n_yr = n_distinct(year(date))),
             n_sp = n_distinct(spec),
             ave_mass = mean(weight, na.rm = T)) %>% 
   ungroup() %>% 
   left_join(rename(dat$stations, loc = LOC, station = STATION), by = c("loc", "station"))#join to station data
 
 
-
+n_sp = n_distinct(dat_weight$spec)
 
 
 
