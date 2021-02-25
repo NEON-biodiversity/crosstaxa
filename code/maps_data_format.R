@@ -13,143 +13,13 @@ devtools::install_github('NEON-biodiversity/Ostats')
 load("./data/MAPSexport.Rdata")
 
 #make a tibble
-dat = lapply(maps.data, as_tibble)
+dat<-lapply(maps.data, as_tibble)
 
 rm(maps.data)#why remove maps data because its o big and will slow things down?
 
 head(dat)
-dat$band
+dat$band#this is the individual level data
 
-n_distinct(dat$band$SPEC)# calculate the species richness
-
-#data year range (1989-2017)
-range(dat$band$DATE)
-
-#data weight range (4.1g-353.4g) and histogram
-range(dat$band$WEIGHT)
-hist(dat$band$WEIGHT)
-
-#rename year columns and make yr2 (year number in data set) and log mass columns
-dat$band = mutate(dat$band, mass_g_log10 = log10(WEIGHT),
-                  yr = year(DATE),
-                  yr2 = yr - min(yr))
-
-#histogram of log weight
-hist(dat$band$mass_g_log10)
-
-#I am guessing this is individual plots for each species? look into it
-
-# pdf("mass.pdf", width = 8, height = 5, onefile = T)
-# for(i in unique(dat$band$SPEC)){
-#   cat(i, "\t")
-#   d = filter(dat$band, SPEC == i)
-#   if(nrow(d) > 1){
-#     m = lm(WEIGHT ~ yr, d)
-#     m2 = coef(summary(m))
-#     plot(x = d$yr, y = d$WEIGHT, col = d$SEX,
-#          main = paste0(i, ": slope = ", round(m2[2, "Estimate"], 5), ", p = ", round(m2[2, "Pr(>|t|)"], 4)))
-#     abline(m)
-#   } else {
-#     plot(x = d$yr, y = d$WEIGHT, main = i)
-#   }
-# }
-# dev.off()
-
-
-#change column names to lowercase
-names(dat$band) = tolower(names(dat$band))#change to lowercase
-
-# Identify species with < 10 observations (ten individual observations across the entire data set) needs to be 10 per site (or per year)
-sp_rm = group_by(dat$band, spec) %>% 
-  tally() %>% 
-  filter(n < 10) %>% 
-  pull(spec) %>% as.character()
-
-dat$band = filter(dat$band, !spec %in% sp_rm)
-
-n_distinct(dat$band$spec) # 267 species
-
-
-
-
-# remove outliers function (why trim=.1, why .25 and 2 *mean?)
-rm_outlier = function(d, trim_pct = 0.1){
-  t_mean = mean(d$weight, na.rm = TRUE, trim = trim_pct)
-  min_mass = t_mean * 0.25
-  max_mass = t_mean * 2.0
-  d2 = filter(d, weight >= min_mass & weight <= max_mass)
-  cat(nrow(d) - nrow(d2), "\t")
-  d2
-}
-
-
-#remove the outliers
-dat_weight = group_by(dat$band, spec) %>% 
-  do(rm_outlier(.)) %>% ungroup()
-
-# pdf("mass_2.pdf", width = 8, height = 5, onefile = T)
-# for(i in unique(dat_weight$spec)){
-#   cat(i, "\t")
-#   d = filter(dat_weight, spec == i)
-#   if(nrow(d) > 1){
-#     m = lm(weight ~ yr, d)
-#     m2 = coef(summary(m))
-#     plot(x = d$yr, y = d$weight, col = d$sex,
-#          main = paste0(i, ": slope = ", round(m2[2, "Estimate"], 5), ", p = ", round(m2[2, "Pr(>|t|)"], 4)))
-#     abline(m)
-#   } else {
-#     plot(x = d$yr, y = d$weight, main = i)
-#   }
-# }
-# dev.off()
-
-# library(lme4)
-# mod_1 = lmer(mass_g_log10 ~ yr2 + (1|spec) + (1|loc/station) + (0 + yr|spec), data = dat_weight)
-# summary(mod_1)
-
-
-#summary table for each station including # of years sampled, avg. mass, species richness
-summ_loc = group_by(dat_weight, loc, station) %>% 
-  summarise(n_yr = n_distinct(year(date)),
-            n_sp = n_distinct(spec),
-            ave_mass = mean(weight, na.rm = T)) %>% 
-  ungroup() %>% 
-  left_join(rename(dat$stations, loc = LOC, station = STATION), by = c("loc", "station"))#join to station data
-
-?year
-#break apart function
-a= group_by(dat_weight, loc, station) 
-b=summarise(a,n_yr = n_distinct(year(date))),
-n_sp = n_distinct(spec),
-ave_mass = mean(weight, na.rm = T)) %>% 
-  ungroup() %>% 
-  left_join(rename(dat$stations, loc = LOC, station = STATION), by = c("loc", "station"))#join to station data
-
-
-n_sp = n_distinct(dat_weight$spec)
-
-
-
-#histogram of years sampled across locations
-hist(summ_loc$n_yr)
-
-
-#maps of locations
-north_ame = spData::world %>% 
-  filter(continent == "North America")
-north_ame_p = ggplot() +
-  geom_sf(data = north_ame)
-
-plot(north_ame)
-
-#map colored by sampling years
-north_ame_p +
-  geom_point(data = summ_loc, aes(x = DECLNG, y = DECLAT, color = n_yr))
-
-
-#map colored by sampling years
-north_ame_p +
-  geom_point(data = summ_loc, aes(x = DECLNG, y = DECLAT, color = n_sp))
 
 
 #############################################################################
@@ -180,9 +50,9 @@ head(bird_site_filt)
   #mutate(log_WEIGHT = log10(WEIGHT))
 
 #subset so it works
-bb<-unique(bird_site_filt$STATION)[1:100]
+bb<-unique(bird_site_filt$STATION)[1:200]
 
-dat <- bird_site_filt %>%
+dat_in <- bird_site_filt %>%
   filter(STATION %in% bb)%>% 
   select(STATION, SPEC, WEIGHT) %>%
   filter(!is.na(WEIGHT)) %>%
@@ -191,19 +61,25 @@ dat <- bird_site_filt %>%
 
 
 # Group the data by siteID and taxonID and look at the summary 
-dat %>%
+dat_in %>%
   group_by(STATION, SPEC) %>%
   slice(1)
 
 #look at data that is input for OSTATS functions
-head(dat)
+head(dat_in)
 
 
 ####run Ostats function: copied from vignette####
 
-Ostats_example <- Ostats(traits = as.matrix(dat[,'log_WEIGHT']),
-                         sp = factor(dat$SPEC),
-                         plots = factor(dat$STATION),
+Ostats_example <- Ostats(traits = as.matrix(dat_in[,'log_WEIGHT']),
+                         sp = factor(dat_in$SPEC),
+                         plots = factor(dat_in$STATION),
+                         data_type = "linear",
+                         nperm = 1)
+
+Ostats_example100 <- Ostats(traits = as.matrix(dat_in[,'log_WEIGHT']),
+                         sp = factor(dat_in$SPEC),
+                         plots = factor(dat_in$STATION),
                          data_type = "linear",
                          nperm = 1)
 
@@ -215,14 +91,39 @@ Ostats_example
 
 ostats_output<-as.data.frame(Ostats_example)
 
+#make a data frame of site richness
+site_richness<-bird_site_filt %>% 
+  distinct(STATION, count)
+
 #give Ostats output a site id column from the current rownames
 
 final_output<-ostats_output%>%
-  mutate(SITE = as.integer(row.names(ostats_output)))%>%#give Ostats output a site id column from the current rownames
-  left_join(.,final_site, by = "SITE") #join site data to ostats_output
+  mutate(STATION= row.names(ostats_output))%>%#give Ostats output a site id column from the current rownames
+  left_join(.,site_richness, by = "STATION") #join site data to ostats_output
 
+rename(final_output, SITE = STATION)
+
+mod<-lm(overlaps_norm~count, data=final_output)
+summary(mod)
+
+plot(final_output$count,final_output$overlaps_norm)
 #need code here to save out OSTATS
 
 sites2use<-c('0004','COPC', 'MOFN')
-Ostats_plot(indiv_dat = dat, plots = dat$STATION, sp = dat$SPEC, trait = dat$log_WEIGHT, overlap_dat = Ostats_example, sites2use = sites2use, name_x = 'WEIGHT (log-transformed)', means=T)
+Ostats_plot(indiv_dat = dat_in, plots = dat_in$STATION, sp = dat_in$SPEC, trait = dat_in$log_WEIGHT, overlap_dat = Ostats_example, sites2use = sites2use, name_x = 'WEIGHT (log-transformed)', means=T)
 ?Ostats_plot
+
+
+
+sites2use<-c('0004','0011', '0012')
+Ostats_plot(indiv_dat = dat_in, plots = dat_in$STATION, 
+sp = dat_in$SPEC, trait = dat_in$log_WEIGHT, 
+overlap_dat = Ostats_example, sites2use = sites2use, name_x = 'WEIGHT (log-transformed)', means=T)
+?Ostats_plot
+
+
+
+Ostats_plot(plots = dat_in$STATION, sp = dat_in$SPEC, traits = dat_in$log_WEIGHT,
+            overlap_dat = Ostats_example,
+            use_plots = sites2use, means = TRUE)
+
