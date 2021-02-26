@@ -77,13 +77,22 @@ svl_site_merged <- svl_site%>% mutate(
 length(unique(svl_site_merged$SITE2))#total number of unique sites =3805
 
 
-#works to get species counts per site and filter out sites with < 2 species
+#get species counts per site and filter out sites with < 2 species
 svl_site_filt<-ddply(svl_site_merged, .(SITE2), mutate, count = length(unique(ID)))%>%
   filter(count >1)
 
 head(svl_site_filt)
 
-length(duplicated(svl_site_filt$SITE))
+
+#Calculate species counts for each site and take species with 5 or more individuals
+
+hi_abund<-svl_site_filt %>%
+  dplyr::count(SITE2, ID) %>%
+  filter(n >4)
+
+#take only those sites where alls pecies have >4 individuals
+svl_site_input<-svl_site_filt[svl_site_filt$SITE2 %in% hi_abund$SITE2, ]
+#filter(count >1) #in case we want to keep sites where we remove species, we can filter count again here
 
 
 ####dont think i need this anymore (check)
@@ -100,26 +109,26 @@ length(duplicated(svl_site_filt$SITE))
 #  filter for only 3 sites to test then select the relevant columns required by the function site, id, svl.
 # Use the mutate function to add a new column named "log_SVL" to log-transform the measurements.
 
-dat <- svl_site_filt %>%
+o_data <- svl_site_filt %>%
   #filter(SITE %in% c('14','83', '1473'))%>% 
-  select(SITE, ID, SVL) %>%
+  select(SITE2, ID, SVL) %>%
   filter(!is.na(SVL)) %>%
   mutate(log_SVL = log10(SVL))
 
 # Group the data by siteID and taxonID and look at the summary 
-dat %>%
-  group_by(SITE, ID) %>%
+o_data %>%
+  group_by(SITE2, ID) %>%
   slice(1)
 
 #look at data that is input for OSTATS functions
-head(dat)
+head(o_data)
 
 
 ####run Ostats function: copied from vignette####
 
-Ostats_example <- Ostats(traits = as.matrix(dat[,'log_SVL']),
+overlap<- Ostats(traits = as.matrix(o_data[,'log_SVL']),
                          sp = factor(dat$ID),
-                         plots = factor(dat$SITE),
+                         plots = factor(dat$SITE2),
                          data_type = "linear")
 
 #make ostats a data frame
