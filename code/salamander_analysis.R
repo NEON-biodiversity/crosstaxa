@@ -74,7 +74,6 @@ length(unique(svl_site$lat_long))
 svl_site_merged <- svl_site%>% mutate(
   SITE2 = paste(SITE, Elevation, sep = "_"))
 
-length(unique(svl_site_merged$SITE2))#total number of unique sites =3805
 
 
 #get species counts per site and filter out sites with < 2 species
@@ -90,7 +89,7 @@ hi_abund<-svl_site_filt %>%
   dplyr::count(SITE2, ID) %>%
   filter(n >4)
 
-#take only those sites where alls pecies have >4 individuals
+#take svl data for only those sites where all species have >4 individuals
 svl_site_input<-svl_site_filt[svl_site_filt$SITE2 %in% hi_abund$SITE2, ]
 #filter(count >1) #in case we want to keep sites where we remove species, we can filter count again here
 
@@ -115,7 +114,12 @@ o_data <- svl_site_filt %>%
   filter(!is.na(SVL)) %>%
   mutate(log_SVL = log10(SVL))
 
-# Group the data by siteID and taxonID and look at the summary 
+
+#select the env colums from the matrix to use with ostats output
+o_env <- svl_site_filt %>%
+  select(-SITE, -USNM ,-ID, -SVL)
+
+# Group the svl data by siteID and taxonID and look at the summary 
 o_data %>%
   group_by(SITE2, ID) %>%
   slice(1)
@@ -127,34 +131,35 @@ head(o_data)
 ####run Ostats function: copied from vignette####
 
 overlap<- Ostats(traits = as.matrix(o_data[,'log_SVL']),
-                         sp = factor(dat$ID),
-                         plots = factor(dat$SITE2),
+                         sp = factor(o_data$ID),
+                         plots = factor(o_data$SITE2),
                          data_type = "linear")
 
 #make ostats a data frame
 
-ostats_output<-as.data.frame(Ostats_example)
+ostats_output<-as.data.frame(overlap)
 
-#give Ostats output a site id column from the current rownames
+#give Ostats output a site id (SITE2) column from the current rownames and join to env data
 
 final_output<-ostats_output%>%
-              mutate(SITE = as.integer(row.names(ostats_output)))%>%#give Ostats output a site id column from the current rownames
-              left_join(.,final_site, by = "SITE") #join site data to ostats_output
+              mutate(SITE2 = row.names(ostats_output))%>%#give Ostats output a site id column from the current rownames
+              left_join(.,unique(o_env), by = "SITE2") #join site env data to ostats_output
 
 #need code here to save out OSTATS
   
 ####Analyze ostats output####
 
-overlap<-read.csv("outputs/ostats_outputv1.csv")
-overlap2<-na.omit(overlap)#remove rows with NA
+svl_overlap<-final_output
+#read.csv("outputs/ostats_outputv1.csv")#all data with only 1 species sites removed
+svl_overlap2<-na.omit(svl_overlap)#remove rows with NA
 
-mod<-lm(overlaps_norm~BIO1+Elevation+Latitude, data=overlap2)
+mod<-lm(overlaps_norm~as.numeric(Latitude)+count+ Elevation+BIO1, data=svl_overlap2)
 summary(mod)
 plot(mod)
-plot(overlap2$Richness, overlap2$overlaps_norm)
+plot(svl_overlap2$count, svl_overlap2$overlaps_norm)
 
 
-ggplot(overlap2, aes(x=BIO1, y=overlaps_norm)) + 
+ggplot(svl_overlap2, aes(x=BIO1, y=overlaps_norm)) + 
   geom_point()+
   geom_smooth(method=lm)
 
