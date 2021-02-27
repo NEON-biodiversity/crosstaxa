@@ -146,7 +146,7 @@ final_output<-ostats_output%>%
               left_join(.,unique(o_env), by = "SITE2") #join site env data to ostats_output
 
 #need code here to save out OSTATS
-  
+  write.csv(final_output,"outputs/overlap_gr_4.csv")
 ####Analyze ostats output####
 
 svl_overlap<-final_output
