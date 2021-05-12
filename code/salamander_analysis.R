@@ -83,18 +83,20 @@ svl_site_filt<-ddply(svl_site_merged, .(SITE2), mutate, count = length(unique(ID
 head(svl_site_filt)
 
 
-#Calculate species counts for each site and take species with 5 or more individuals
+#Figure out which sites haves species with less than 5 individuals 
 
 hi_abund<-svl_site_filt %>%
   dplyr::count(SITE2, ID) %>%
-  filter(n >4)
+  filter(n <5)
+#filter(n >4) #will allow us to keep sites where some species have 5 or more individual
+# however, we would have to filter out this with only 1 ( filter(count >1))species left, discuss with group
 
 #take svl data for only those sites where all species have >4 individuals
-svl_site_input<-svl_site_filt[svl_site_filt$SITE2 %in% hi_abund$SITE2, ]
-#filter(count >1) #in case we want to keep sites where we remove species, we can filter count again here
+svl_site_input<-svl_site_filt[!svl_site_filt$SITE2 %in% hi_abund$SITE2, ]
 
+#this leaves us with 323 valid sites
 
-####dont think i need this anymore (check)
+####don't think i need this anymore (check)
 #try to get an env data set where there is one row per site. this will be used for post-ostats analysis.
 #site_vars<-svl_site_filt%>%
           #select (-c(USNM, SVL,ID))%>%#####problem here is that there are other vars that differ e.g.count. do count after? and drop others
@@ -108,15 +110,16 @@ svl_site_input<-svl_site_filt[svl_site_filt$SITE2 %in% hi_abund$SITE2, ]
 #  filter for only 3 sites to test then select the relevant columns required by the function site, id, svl.
 # Use the mutate function to add a new column named "log_SVL" to log-transform the measurements.
 
-o_data <- svl_site_filt %>%
-  #filter(SITE %in% c('14','83', '1473'))%>% 
+o_data <- svl_site_input %>%
+ # filter(SITE %in% c('14','83', '1473'))%>% 
   select(SITE2, ID, SVL) %>%
   filter(!is.na(SVL)) %>%
   mutate(log_SVL = log10(SVL))
 
 
+
 #select the env colums from the matrix to use with ostats output
-o_env <- svl_site_filt %>%
+o_env <- svl_site_input %>%
   select(-SITE, -USNM ,-ID, -SVL)
 
 # Group the svl data by siteID and taxonID and look at the summary 
@@ -146,19 +149,25 @@ final_output<-ostats_output%>%
               left_join(.,unique(o_env), by = "SITE2") #join site env data to ostats_output
 
 #need code here to save out OSTATS
-  write.csv(final_output,"outputs/overlap_gr_4.csv")
+#write.csv(final_output,"outputs/overlap_5_12.csv")
+
+
+
 ####Analyze ostats output####
 
-svl_overlap<-final_output
+svl_overlap<-final_output #output from above if you don't call it in
 #read.csv("outputs/ostats_outputv1.csv")#all data with only 1 species sites removed
+
 svl_overlap2<-na.omit(svl_overlap)#remove rows with NA
 
+
+#run some models...
 mod<-lm(overlaps_norm~as.numeric(Latitude)+count+ Elevation+BIO1, data=svl_overlap2)
 summary(mod)
 plot(mod)
 plot(svl_overlap2$count, svl_overlap2$overlaps_norm)
 
-
+#Plot univariate relationships
 ggplot(svl_overlap2, aes(x=BIO1, y=overlaps_norm)) + 
   geom_point()+
   geom_smooth(method=lm)
@@ -166,7 +175,12 @@ ggplot(svl_overlap2, aes(x=BIO1, y=overlaps_norm)) +
 
 
 ####Work on plotting
+#get inputs for the plot function
+sites2use<-c(unique(o_data$SITE2))
+plots <- o_data$SITE2
+sp <- o_data$ID
+traits <- o_data$log_SVL
 
-sites2use<-c('14','83', '1473')
-Ostats_plot(indiv_dat = dat, plots = dat$SITE, sp = dat$ID, trait = dat$log_SVL, overlap_dat = Ostats_example, sites2use = sites2use, name_x = 'SVL (log-transformed)', means=T)
-?Ostats_plot
+Ostats_plot(plots = plots, sp = sp, traits = traits,
+            overlap_dat = overlap,
+            use_plots = sites2use, means = TRUE)
