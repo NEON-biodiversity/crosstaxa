@@ -15,9 +15,10 @@ load("./data/MAPSexport.Rdata")
 #make a tibble
 dat<-lapply(maps.data, as_tibble)
 
-rm(maps.data)#why remove maps data because its o big and will slow things down?
+rm(maps.data)#why remove maps data because its o big and will slow things down? Ask Daijiang
 
 head(dat)
+
 dat$band#this is the individual level data
 
 
@@ -26,34 +27,48 @@ dat$band#this is the individual level data
 #############################################################################
 #data formatting for OSTATS (FROM data_format.R script)
 head(dat$band)
+
 #works to get species counts per site (combining across years for now) and filter out sites with < 2 species
 bird_site_filt<-ddply(dat$band, .(STATION), mutate,  count = length(unique(SPEC)))%>%
 filter(count >1)
 
 head(bird_site_filt)
 
-##stopped here, ready to run ostats
+#there are no sites with only one species
+length(unique(dat$band$STATION))
+length(unique(bird_site_filt$STATION))
+
+
+#Figure out which sites haves species with less than 5 individuals 
+bird_test<-ddply(bird_site_filt, .(STATION,SPEC), mutate,  rich = dplyr::count(STATION, SPEC))%>%
+  filter(rich >4)
+?ddply
+
+hi_abund<-bird_site_filt %>%
+  dplyr::count(STATION, SPEC) %>%
+  filter(n>4)
+
+hi_abund<-bird_site_filt %>%
+  dplyr::count(STATION, SPEC) %>%
+  left
+#use group by and then count
+df %>% group_by(a, b) %>% summarise(n = n())
+#filter(n <4) #will allow to filter out all sites that have a species with <5 individuals. problem is, that all but 2 sites...
+
+#take data only for species that have >4 individuals
+bird_site_input<-bird_site_filt[bird_site_filt$STATION %in% hi_abund$STATION | bird_site_filt$SPEC%in%hi_abund$SPEC, ]
+length(unique(hi_abund$STATION))
+length(unique(bird_site_input$STATION))
 
 
 #prep data for OSTATs----
-# Load data from Read et al. (2018) from Figshare web archive
-#dat <- read.csv('https://ndownloader.figshare.com/files/9167548')
 
 
-#  filter for only 3 sites to test then select the relevant columns required by the function site, id, svl.
-# Use the mutate function to add a new column named "log_SVL" to log-transform the measurements.
-
-#dat <- bird_site_filt %>%
-  #filter(STATION %in% c('0004','COPC', 'MOFN'))%>% 
- # select(STATION, SPEC, WEIGHT) %>%
-  #filter(!is.na(WEIGHT)) %>%
-  #mutate(log_WEIGHT = log10(WEIGHT))
-
-#subset so it works
-bb<-unique(bird_site_filt$STATION)[1:200]
+#subset number of stations to run in reasonable time... 
+sub_station<-unique(bird_site_filt$STATION)[1:200]
 
 dat_in <- bird_site_filt %>%
-  filter(STATION %in% bb)%>% 
+  filter(STATION %in% sub_station)%>% 
   select(STATION, SPEC, WEIGHT) %>%
   filter(!is.na(WEIGHT)) %>%
   mutate(log_WEIGHT = log10(WEIGHT))
