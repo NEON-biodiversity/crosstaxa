@@ -118,7 +118,7 @@ o_data <- svl_site_input %>%
 
 
 
-#select the env colums from the matrix to use with ostats output
+#select the env columns from the matrix to use with ostats output
 o_env <- svl_site_input %>%
   select(-SITE, -USNM ,-ID, -SVL)
 
