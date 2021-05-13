@@ -23,14 +23,14 @@ dat$band#this is the individual level data
 
 
 
-#############################################################################
+
 #############################################################################
 #data formatting for OSTATS (FROM data_format.R script)
 head(dat$band)
 
 #works to get species counts per site (combining across years for now) and filter out sites with < 2 species
-bird_site_filt<-ddply(dat$band, .(STATION), mutate,  count = length(unique(SPEC)))%>%
-                      mutate(Spec_Stat = paste(SPEC, STATION, sep = "_"))%>% #Spec_Stat is evert staion spcsie combo i.e. unique indentifier
+bird_site_filt<-ddply(dat$band, .(STATION), mutate,  count = length(unique(SPEC)))%>%#get species counts per station (over time)
+                      mutate(Spec_Stat = paste(SPEC, STATION, sep = "_"))%>% #Spec_Stat is the station/species combo 
                       filter(count >1)
 
 head(bird_site_filt)
@@ -40,7 +40,7 @@ length(unique(dat$band$STATION))#n=946
 length(unique(bird_site_filt$STATION))#n=946
 
 
-#Figure out which sites haves species with less than 5 individuals 
+#Figure out which sites/species combos have less than 5 individuals and filter them out
 
 hi_abund<-bird_site_filt %>%
   dplyr::count(Spec_Stat) %>%
@@ -65,9 +65,9 @@ length(unique(bird_site_input$Spec_Stat))
 
 
 #subset number of stations to run in reasonable time... 
-sub_station<-unique(bird_site_filt$STATION)[1:200]
+sub_station<-unique(bird_site_input$STATION)[1:50]
 
-dat_in <- bird_site_filt %>%
+dat_in <- bird_site_input %>%
   filter(STATION %in% sub_station)%>% 
   select(STATION, SPEC, WEIGHT) %>%
   filter(!is.na(WEIGHT)) %>%
@@ -75,7 +75,7 @@ dat_in <- bird_site_filt %>%
 
 
 
-# Group the data by siteID and taxonID and look at the summary 
+# Group the data by Station and Species and look at the summary (why? ask quentin or Daijiang)
 dat_in %>%
   group_by(STATION, SPEC) %>%
   slice(1)
@@ -91,15 +91,6 @@ Ostats_example <- Ostats(traits = as.matrix(dat_in[,'log_WEIGHT']),
                          plots = factor(dat_in$STATION),
                          data_type = "linear",
                          nperm = 1)
-
-Ostats_example100 <- Ostats(traits = as.matrix(dat_in[,'log_WEIGHT']),
-                         sp = factor(dat_in$SPEC),
-                         plots = factor(dat_in$STATION),
-                         data_type = "linear",
-                         nperm = 1)
-
-
-
 
 Ostats_example
 #make ostats a data frame
@@ -124,17 +115,25 @@ summary(mod)
 plot(final_output$count,final_output$overlaps_norm)
 #need code here to save out OSTATS
 
-sites2use<-c('0004','COPC', 'MOFN')
-Ostats_plot(indiv_dat = dat_in, plots = dat_in$STATION, sp = dat_in$SPEC, trait = dat_in$log_WEIGHT, overlap_dat = Ostats_example, sites2use = sites2use, name_x = 'WEIGHT (log-transformed)', means=T)
+
+#get inputs for the plot function
+#sites2use<-c('0004','0005', '0006')
+sites2use<-c(unique(dat_in$STATION))
+plots <- dat_in$STATION
+sp <- dat_in$SPEC
+traits <- dat_in$log_WEIGHT
+
+Ostats_plot(plots = plots, sp = sp, traits = traits,
+            overlap_dat = final_output,
+            use_plots = sites2use, means = TRUE)
+
+Ostats_plot(plots = plots, sp = sp, traits = traits,
+            overlap_dat = final_output,
+             means = TRUE)
 ?Ostats_plot
 
 
-
-sites2use<-c('0004','0011', '0012')
-Ostats_plot(indiv_dat = dat_in, plots = dat_in$STATION, 
-sp = dat_in$SPEC, trait = dat_in$log_WEIGHT, 
-overlap_dat = Ostats_example, sites2use = sites2use, name_x = 'WEIGHT (log-transformed)', means=T)
-?Ostats_plot
+ostat_norm[rownames(ostat_norm) %in% use_plots, ]
 
 
 
