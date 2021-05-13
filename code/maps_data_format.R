@@ -107,7 +107,7 @@ final_output<-ostats_output%>%
   mutate(STATION= row.names(ostats_output))%>%#give Ostats output a site id column from the current rownames
   left_join(.,site_richness, by = "STATION") #join site data to ostats_output
 
-rename(final_output, SITE = STATION)
+#rename(final_output, SITE = STATION)
 
 mod<-lm(overlaps_norm~count, data=final_output)
 summary(mod)
@@ -117,7 +117,7 @@ plot(final_output$count,final_output$overlaps_norm)
 
 
 #get inputs for the plot function
-#sites2use<-c('0004','0005', '0006')
+sites2use<-c('0004','7MIL', 'ADNO')
 sites2use<-c(unique(dat_in$STATION))
 plots <- dat_in$STATION
 sp <- dat_in$SPEC
