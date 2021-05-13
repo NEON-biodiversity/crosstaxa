@@ -177,6 +177,7 @@ ggplot(svl_overlap2, aes(x=BIO1, y=overlaps_norm)) +
 ####Work on plotting
 #get inputs for the plot function
 sites2use<-c(unique(o_data$SITE2))
+sites2use<-c("4450_2090" ,"4476_2900" ,"4477_2600")
 plots <- o_data$SITE2
 sp <- o_data$ID
 traits <- o_data$log_SVL
