@@ -30,35 +30,35 @@ head(dat$band)
 
 #works to get species counts per site (combining across years for now) and filter out sites with < 2 species
 bird_site_filt<-ddply(dat$band, .(STATION), mutate,  count = length(unique(SPEC)))%>%
-filter(count >1)
+                      mutate(Spec_Stat = paste(SPEC, STATION, sep = "_"))%>% #Spec_Stat is evert staion spcsie combo i.e. unique indentifier
+                      filter(count >1)
 
 head(bird_site_filt)
 
 #there are no sites with only one species
-length(unique(dat$band$STATION))
-length(unique(bird_site_filt$STATION))
+length(unique(dat$band$STATION))#n=946
+length(unique(bird_site_filt$STATION))#n=946
 
 
 #Figure out which sites haves species with less than 5 individuals 
-bird_test<-ddply(bird_site_filt, .(STATION,SPEC), mutate,  rich = dplyr::count(STATION, SPEC))%>%
-  filter(rich >4)
-?ddply
 
 hi_abund<-bird_site_filt %>%
-  dplyr::count(STATION, SPEC) %>%
+  dplyr::count(Spec_Stat) %>%
   filter(n>4)
 
-hi_abund<-bird_site_filt %>%
-  dplyr::count(STATION, SPEC) %>%
-  left
-#use group by and then count
-df %>% group_by(a, b) %>% summarise(n = n())
+#filter(n <4) #will allow to filter out all sites that have a species with <5 individuals. problem is, that all but 2 sites...
+
+
+#use group by and then count, same result as line above
+#bird_site_filt %>% group_by(STATION, SPEC) %>%   dplyr::summarise(n = n())
+
 #filter(n <4) #will allow to filter out all sites that have a species with <5 individuals. problem is, that all but 2 sites...
 
 #take data only for species that have >4 individuals
-bird_site_input<-bird_site_filt[bird_site_filt$STATION %in% hi_abund$STATION | bird_site_filt$SPEC%in%hi_abund$SPEC, ]
-length(unique(hi_abund$STATION))
-length(unique(bird_site_input$STATION))
+bird_site_input<-bird_site_filt[bird_site_filt$Spec_Stat %in% hi_abund$Spec_Stat, ]
+
+length(unique(hi_abund$Spec_Stat))
+length(unique(bird_site_input$Spec_Stat))
 
 
 #prep data for OSTATs----
