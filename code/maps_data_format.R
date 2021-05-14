@@ -1,5 +1,6 @@
 #clean MAPS BIRD DATA
 
+#devtools::install_github('NEON-biodiversity/Ostats')
 library(tidyverse)
 library(spData)
 library(sf)
@@ -7,7 +8,7 @@ library(lubridate)
 library(plyr)
 library(Ostats)
 library(ggplot2)
-devtools::install_github('NEON-biodiversity/Ostats')
+
 
 #loading R data file for maps data
 load("./data/MAPSexport.Rdata")
@@ -25,7 +26,7 @@ dat$band#this is the individual level data
 
 
 #############################################################################
-#data formatting for OSTATS (FROM data_format.R script)
+#data formatting for OSTATS 
 head(dat$band)
 
 #works to get species counts per site (combining across years for now) and filter out sites with < 2 species
@@ -54,7 +55,7 @@ hi_abund<-bird_site_filt %>%
 
 #filter(n <4) #will allow to filter out all sites that have a species with <5 individuals. problem is, that all but 2 sites...
 
-#take data only for species that have >4 individuals
+#take data only for station/species combos that have >4 individuals
 bird_site_input<-bird_site_filt[bird_site_filt$Spec_Stat %in% hi_abund$Spec_Stat, ]
 
 length(unique(hi_abund$Spec_Stat))

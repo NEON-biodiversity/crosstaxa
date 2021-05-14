@@ -112,7 +112,8 @@ length(unique(svl_site_input$SITE2))
 # Use the mutate function to add a new column named "log_SVL" to log-transform the measurements.
 
 o_data <- svl_site_input %>%
- # filter(SITE %in% c('14','83', '1473'))%>% 
+ # filter(SITE %in% c('14','83', '1473'))%>% #does doing this fix plot mean issue?
+  
   select(SITE2, ID, SVL) %>%
   filter(!is.na(SVL)) %>%
   mutate(log_SVL = log10(SVL))
