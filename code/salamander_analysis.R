@@ -44,11 +44,11 @@ length(unique(sal_SVL$lat_long))
 sal_site <- sal_site%>% mutate(
             lat_long = paste(Latitude, Longitude, sep = "_"))
 
-#find duplicate lat/longs (i.e. sites had two plots and they were given the same coarse lat/long)
+#find the number of duplicate lat/longs (i.e. some sites had two plots and they were given the same coarse lat/long)
 length(names(which(table(sal_site$lat_long) > 1))) # duplicated lat/longs in site data = 80 
 
 
-#filter out all duplicate rows (i.e., both pairs of the duplicate) from the site data; Dean said it is fine to do this
+#filter out all duplicate rows (i.e., both pairs of the duplicate) from the site data; Dean Adams said it is fine to do this
 singletons <- names(which(table(sal_site$lat_long) == 1))
 final_site<-sal_site[sal_site$lat_long %in% singletons, ]
 
@@ -63,7 +63,7 @@ head(final_svl)
 length(unique(final_svl$lat_long))
 
 
-#join site data and svl data, this has all the env data attached to single measurements
+#join site data and svl data, this has all the env data attached to individual measurements
 svl_site<-left_join(final_svl, final_site[,-(1:2),], by = "lat_long")  
 head(svl_site)
 
@@ -76,7 +76,7 @@ svl_site_merged <- svl_site%>% mutate(
 
 
 
-#get species counts per site and filter out sites with < 2 species
+#get species counts per site and remove sites with < 2 species
 svl_site_filt<-ddply(svl_site_merged, .(SITE2), mutate, count = length(unique(ID)))%>%
   filter(count >1)
 
@@ -95,6 +95,7 @@ hi_abund<-svl_site_filt %>%
 svl_site_input<-svl_site_filt[!svl_site_filt$SITE2 %in% hi_abund$SITE2, ]
 
 #this leaves us with 323 valid sites
+length(unique(svl_site_input$SITE2))
 
 ####don't think i need this anymore (check)
 #try to get an env data set where there is one row per site. this will be used for post-ostats analysis.
@@ -144,18 +145,18 @@ ostats_output<-as.data.frame(overlap)
 
 #give Ostats output a site id (SITE2) column from the current rownames and join to env data
 
-final_output<-ostats_output%>%
+sal_output<-ostats_output%>%
               mutate(SITE2 = row.names(ostats_output))%>%#give Ostats output a site id column from the current rownames
               left_join(.,unique(o_env), by = "SITE2") #join site env data to ostats_output
 
 #need code here to save out OSTATS
-#write.csv(final_output,"outputs/overlap_5_12.csv")
+#write.csv(sal_output,"outputs/overlap_5_14.csv")
 
 
 
 ####Analyze ostats output####
 
-svl_overlap<-final_output #output from above if you don't call it in
+svl_overlap<-sal_output #output from above if you don't call it in
 #read.csv("outputs/ostats_outputv1.csv")#all data with only 1 species sites removed
 
 svl_overlap2<-na.omit(svl_overlap)#remove rows with NA
@@ -185,3 +186,4 @@ traits <- o_data$log_SVL
 Ostats_plot(plots = plots, sp = sp, traits = traits,
             overlap_dat = overlap,
             use_plots = sites2use, means = TRUE)
+
