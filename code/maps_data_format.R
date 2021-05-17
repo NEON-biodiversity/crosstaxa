@@ -94,8 +94,30 @@ Ostats_example <- Ostats(traits = as.matrix(dat_in[,'log_WEIGHT']),
                          nperm = 1)
 
 Ostats_example
-#make ostats a data frame
 
+
+#ostats plots for three sites/stations
+
+#inputs for "Ostats_plot" function
+
+#sites2use<-c("0004", "0005", "0006") #pick specific sites or
+sites2use<-unique(dat_in$STATION)# if you filter above then use this
+plots <- dat_in$STATION
+sp <- dat_in$SPEC
+traits <- dat_in$log_WEIGHT
+
+#plot distributions and means
+Ostats_plot(plots = plots, sp = sp, traits = traits,
+            overlap_dat = Ostats_example,
+            use_plots = sites2use, means = TRUE)
+
+#alternative way to plot with inputs included
+Ostats_plot(plots = dat_in$STATION, sp = dat_in$SPEC, traits = dat_in$log_WEIGHT,
+            overlap_dat = Ostats_example,
+            use_plots = sites2use, means = TRUE)
+
+
+#make ostats a data frame for further analysis
 ostats_bird_output<-as.data.frame(Ostats_example)
 
 #make a data frame of site richness
@@ -103,6 +125,8 @@ site_richness<-dat_in %>%
   distinct(STATION, count)
 
 #give Ostats output a site id column from the current rownames
+
+#****need to add in other env. vars with code below
 
 final_output<-ostats_bird_output%>%
   mutate(STATION= row.names(ostats_output))%>%#give Ostats output a site id column from the current rownames
@@ -119,14 +143,12 @@ plot(final_output$count,final_output$overlaps_norm)
 
 
 
-Ostats_plot(plots = dat_in$STATION, sp = dat_in$SPEC, traits = dat_in$log_WEIGHT,
-            overlap_dat = Ostats_example,
-            use_plots = sites2use, means = TRUE)
+
 
 #ostats plots
 
 #inputs for "Ostats_plot" function
-sites2use<-c("0004", "0005", "0006")
+#sites2use<-c("0004", "0005", "0006")
 sites2use<-unique(dat_in$STATION)
 plots <- dat_in$STATION
 sp <- dat_in$SPEC
@@ -134,6 +156,11 @@ traits <- dat_in$log_WEIGHT
 
 #plot distributions and means
 Ostats_plot(plots = plots, sp = sp, traits = traits,
+            overlap_dat = Ostats_example,
+            use_plots = sites2use, means = TRUE)
+
+#alternative way to plot with inputs included
+Ostats_plot(plots = dat_in$STATION, sp = dat_in$SPEC, traits = dat_in$log_WEIGHT,
             overlap_dat = Ostats_example,
             use_plots = sites2use, means = TRUE)
 
