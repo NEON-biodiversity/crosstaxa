@@ -37,7 +37,7 @@ sal_site<-dplyr::rename(sal_site,
 sal_SVL <- sal_SVL%>% mutate(
            lat_long = paste(Latitude, Longitude, sep = "_"))
 
-#number of lat/longs in SVL data = 3907
+#number of unique lat/longs in SVL data = 3907
 length(unique(sal_SVL$lat_long))
 
 #make a new column from a concatenation of lat and long called lat_long for the site data set
@@ -83,7 +83,7 @@ svl_site_filt<-ddply(svl_site_merged, .(SITE2), mutate, count = length(unique(ID
 head(svl_site_filt)
 
 
-#Figure out which sites haves species with less than 5 individuals 
+#Figure out which species/site combinations s with less than 5 individuals 
 
 hi_abund<-svl_site_filt %>%
   dplyr::count(SITE2, ID) %>%
@@ -112,8 +112,7 @@ length(unique(svl_site_input$SITE2))
 # Use the mutate function to add a new column named "log_SVL" to log-transform the measurements.
 
 o_data <- svl_site_input %>%
- # filter(SITE %in% c('14','83', '1473'))%>% #does doing this fix plot mean issue?
-  
+  filter(SITE %in% c('14','83', '3045'))%>% #need to filter for 3 sites if you want the mean plots to work 
   select(SITE2, ID, SVL) %>%
   filter(!is.na(SVL)) %>%
   mutate(log_SVL = log10(SVL))
@@ -179,7 +178,7 @@ ggplot(svl_overlap2, aes(x=BIO1, y=overlaps_norm)) +
 ####Work on plotting
 #get inputs for the plot function
 sites2use<-c(unique(o_data$SITE2))
-sites2use<-c("4450_2090" ,"4476_2900" ,"4477_2600")
+#sites2use<-c("4450_2090" ,"4476_2900" ,"4477_2600")
 plots <- o_data$SITE2
 sp <- o_data$ID
 traits <- o_data$log_SVL
