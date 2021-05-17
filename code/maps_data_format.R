@@ -53,11 +53,11 @@ hi_abund<-bird_site_filt %>%
 #use group by and then count, same result as line above
 #bird_site_filt %>% group_by(STATION, SPEC) %>%   dplyr::summarise(n = n())
 
-#filter(n <4) #will allow to filter out all sites that have a species with <5 individuals. problem is, that all but 2 sites...
 
 #take data only for station/species combos that have >4 individuals
 bird_site_input<-bird_site_filt[bird_site_filt$Spec_Stat %in% hi_abund$Spec_Stat, ]
 
+#******note that this removes species that have fewer than 5 individuals but not hat entire site, discuss with group
 length(unique(hi_abund$Spec_Stat))
 length(unique(bird_site_input$Spec_Stat))
 
@@ -66,11 +66,11 @@ length(unique(bird_site_input$Spec_Stat))
 
 
 #subset number of stations to run in reasonable time... 
-sub_station<-unique(bird_site_input$STATION)[1:50]
+sub_station<-unique(bird_site_input$STATION)[1:3]
 
 dat_in <- bird_site_input %>%
   filter(STATION %in% sub_station)%>% 
-  select(STATION, SPEC, WEIGHT) %>%
+  select(STATION, SPEC, WEIGHT,count) %>%
   filter(!is.na(WEIGHT)) %>%
   mutate(log_WEIGHT = log10(WEIGHT))
 
@@ -96,15 +96,15 @@ Ostats_example <- Ostats(traits = as.matrix(dat_in[,'log_WEIGHT']),
 Ostats_example
 #make ostats a data frame
 
-ostats_output<-as.data.frame(Ostats_example)
+ostats_bird_output<-as.data.frame(Ostats_example)
 
 #make a data frame of site richness
-site_richness<-bird_site_filt %>% 
+site_richness<-dat_in %>% 
   distinct(STATION, count)
 
 #give Ostats output a site id column from the current rownames
 
-final_output<-ostats_output%>%
+final_output<-ostats_bird_output%>%
   mutate(STATION= row.names(ostats_output))%>%#give Ostats output a site id column from the current rownames
   left_join(.,site_richness, by = "STATION") #join site data to ostats_output
 
@@ -117,28 +117,23 @@ plot(final_output$count,final_output$overlaps_norm)
 #need code here to save out OSTATS
 
 
-#get inputs for the plot function
-sites2use<-c('0004','7MIL', 'ADNO')
-sites2use<-c(unique(dat_in$STATION))
+
+
+Ostats_plot(plots = dat_in$STATION, sp = dat_in$SPEC, traits = dat_in$log_WEIGHT,
+            overlap_dat = Ostats_example,
+            use_plots = sites2use, means = TRUE)
+
+#ostats plots
+
+#inputs for "Ostats_plot" function
+sites2use<-c("0004", "0005", "0006")
+sites2use<-unique(dat_in$STATION)
 plots <- dat_in$STATION
 sp <- dat_in$SPEC
 traits <- dat_in$log_WEIGHT
 
+#plot distributions and means
 Ostats_plot(plots = plots, sp = sp, traits = traits,
-            overlap_dat = final_output,
-            use_plots = sites2use, means = TRUE)
-
-Ostats_plot(plots = plots, sp = sp, traits = traits,
-            overlap_dat = final_output,
-             means = TRUE)
-?Ostats_plot
-
-
-ostat_norm[rownames(ostat_norm) %in% use_plots, ]
-
-
-
-Ostats_plot(plots = dat_in$STATION, sp = dat_in$SPEC, traits = dat_in$log_WEIGHT,
             overlap_dat = Ostats_example,
             use_plots = sites2use, means = TRUE)
 
