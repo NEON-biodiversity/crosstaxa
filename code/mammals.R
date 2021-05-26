@@ -1,5 +1,5 @@
 #small mammal analysis
-
+rm(list=ls())
 
 #devtools::install_github('NEON-biodiversity/Ostats')
 library(tidyverse)
@@ -21,8 +21,8 @@ load("DP1.10072.001.Rdata")
 mam_dat<-lapply(neondata, as_tibble)
 head(mam_dat)
 
-#variable deescriptions
-vars<-mam_dat$variables_10072
+#variable descriptions
+#vars<-mam_dat$variables_10072
 
 #this is the tibble with the itv data (similar data sheet to what Q used for the ecography paper)
 itv_mammal_data<-mam_dat$mam_pertrapnight
@@ -48,9 +48,21 @@ mammal_data2 <- itv_mammal_data%>%
                 drop_na(tagID, scientificName)%>% # get rid of empty trap (i.e. NA tags) and species designation na
                 filter(lifeStage=="adult")%>% #take only adults
                 filter( !grepl('sp\\.', scientificName))%>%#remove identification with sp. (e.g.,Peromyscus sp.)
-                group_by(tagID) %>% #group by 
+                group_by(tagID) %>% #group individuals by tag (i.e., recaptures) 
                 filter(collectDate==min(collectDate))%>% #for recaptures, take the earliest record
-                ungroup()
+                ungroup()%>%
+                mutate(tax_Site = paste(taxonID, siteID, sep = "_"))#make taxa by site designation
+                
+#make list of species/site combos that have <5 individuals  
+abund_filt<-mammal_data2%>%
+            dplyr::count(tax_Site) %>%
+            filter(n>4)
+
+#remove those species/site combos and filter sites with 
+high_abun_mam<-mammal_data2[mammal_data2$tax_Site %in% abund_filt$tax_Site, ]     
+      filter(Observed >1)
+
+
 
 
 
@@ -65,7 +77,7 @@ mammal_data2 <- itv_mammal_data%>%
 #  filter for only 3 sites to test then select the relevant columns required by the function site, id, svl.
 # Use the mutate function to add a new column named "log_SVL" to log-transform the measurements.
 
-o_stat_mam <- mammal_data2 %>%
+o_stat_mam <- high_abun_mam %>%
   #need to filter for 3 sites if you want the mean plots to work 
   select(siteID, scientificName, logweight) %>%
   filter(!is.na(logweight)) 
@@ -73,8 +85,8 @@ o_stat_mam <- mammal_data2 %>%
 
 
 #select the env columns from the matrix to use with ostats output
-o_env <- svl_site_input %>%
-  select(-SITE, -USNM ,-ID, -SVL)
+#o_env <- svl_site_input %>%
+  #select(-SITE, -USNM ,-ID, -SVL)
 
 # Group the svl data by siteID and taxonID and look at the summary 
 o_stat_mam  %>%
@@ -137,8 +149,7 @@ ggplot(svl_overlap2, aes(x=BIO1, y=overlaps_norm)) +
 # Get rid of poorly identified individuals (those marked sp.) because they should not count for our sampling . . . they are spurious singletons.
 # Then generate vectors of abundances by species for each site
 #note that this is calculated on al
-mammaltables <- mammal_data %>% 
-  filter( !grepl('sp\\.', mammal_data$scientificName)) %>% 
+mammaltables <- high_abun_mam %>% 
   group_by(siteID) %>% 
   do(t = table(.$taxonID))
 
@@ -154,7 +165,7 @@ richness_estimators <- iNEXT(x=mamx, q=0, datatype='abundance', size = c(5,10,50
 #Estimtes for each site )species rich, shannon, simpson)
 richness_estimators$AsyEst
 
-# Calculate Chao1 richness estimator and combine all richness estimators by site.
+# Calculate Chao1 richness estimator and combine all richness estimators by site. (not sure what this does of if it used?)
 chao <- function(x) {
   xcomm <- table(x$taxonID)
   S_obs <- length(xcomm)
@@ -165,9 +176,9 @@ chao <- function(x) {
 
 
 #just grab richness by site
-asymptotic_richness <- richness_estimators$AsyEst %>% filter(Diversity == 'Species richness') 
-asymptotic_richness$Site <- factor(asymptotic_richness$Site, levels=asymptotic_richness$Site[order(asymptotic_richness$Observed)])
+asymptotic_richness <- richness_estimators$AsyEst %>% 
+  filter(Diversity == 'Species richness') 
+asymptotic_richness$siteID <- factor(asymptotic_richness$Site, levels=asymptotic_richness$Site[order(asymptotic_richness$Observed)])#make siteID column to left join
 
-mod<-lm(ostats_output$logweight~asymptotic_richness$Observed)
-summary(mod)
+
 
