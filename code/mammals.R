@@ -109,10 +109,6 @@ high_abun_mam<-mammal_data3[mammal_data3$tax_Site %in% abund_filt$tax_Site, ]%>%
 
 
 #prep data for OSTATs----
-
-#  filter for only 3 sites to test then select the relevant columns required by the function site, id, svl.
-# Use the mutate function to add a new column named "log_SVL" to log-transform the measurements.
-
 o_stat_mam <- high_abun_mam %>%
   #need to filter for 3 sites if you want the mean plots to work 
   select(siteID, scientificName, logweight) %>%
@@ -120,11 +116,11 @@ o_stat_mam <- high_abun_mam %>%
 
 
 
-#select the env columns from the matrix to use with ostats output
+#select the env columns from the matrix to use with ostats output (need site level vars here...)
 mam_env <- high_abun_mam %>%
-           select(siteID, elevation ,nlcdClass,decimalLatitude,decimalLongitude )
+           select(siteID,Observed )
 
-# Group the svl data by siteID and taxonID and look at the summary 
+# Group the mam data by siteID and taxonID and look at the summary 
 o_stat_mam  %>%
   group_by(siteID, scientificName) %>%
   slice(1)
@@ -141,36 +137,34 @@ overlap_mam<- Ostats(traits = as.matrix(o_stat_mam[,'logweight']),
                  data_type = "linear",
                  nperm=1)
 
-head(overlap_mam)
+head(overlap_mam$overlaps_norm)
 
 #make ostats a data frame
 
 ostats_output<-as.data.frame(overlap_mam)
-
+colnames(ostats_output)
 #give Ostats output a site id (SITE2) column from the current rownames and join to env data
 
-sal_output<-ostats_output%>%
-  mutate(SITE2 = row.names(ostats_output))%>%#give Ostats output a site id column from the current rownames
-  left_join(.,unique(o_env), by = "SITE2") #join site env data to ostats_output
-
+mam_output<-ostats_output%>%
+  mutate(siteID= row.names(ostats_output))%>%#give Ostats output a site id column from the current rownames
+  left_join(.,unique(mam_env), by = "siteID")%>% #join site env data to ostats_output/ need to fix this for other vars
+  drop_na(logweight)
 #need code here to save out OSTATS
-#write.csv(sal_output,"outputs/overlap_5_14.csv")
+#write.csv(mam_output,"outputs/overlap_5_14.csv")
 
 
 
 ####Analyze ostats output####
-
-svl_overlap<-sal_output #output from above if you don't call it in
+ #output from above if you don't call it in
 #read.csv("outputs/ostats_outputv1.csv")#all data with only 1 species sites removed
-
-svl_overlap2<-na.omit(svl_overlap)#remove rows with NA
-
+select(mam_output,siteID, logweight, Observed)%>%
+        arrange(.,logweight)
 
 #run some models...
-mod<-lm(overlaps_norm~as.numeric(Latitude)+count+ Elevation+BIO1, data=svl_overlap2)
+mod<-lm(logweight~Observed, data=mam_output)
 summary(mod)
 plot(mod)
-plot(svl_overlap2$count, svl_overlap2$overlaps_norm)
+plot(mam_output$Observed, mam_output$logweight.1)
 
 #Plot univariate relationships
 ggplot(svl_overlap2, aes(x=BIO1, y=overlaps_norm)) + 
