@@ -29,15 +29,8 @@ itv_mammal_data<-mam_dat$mam_pertrapnight
 head(itv_mammal_data)
 
 # Get rid of all non-target taxa and combine different columns that were used for individual IDs in different contexts.
-#Qs code, not sure about pmin
-#mammal_data <- mutate(itv_mammal_data, 
-                     # individualandtag = pmin(as.character(individualID), as.character(tagID), na.rm=TRUE),
-                      #year = year(date)) %>%
-  #filter(order == 'Rodentia', taxonProtocolCategory == 'target')
 
-
-
-#this one does not remove juviniles doubles etc
+#this one does not remove juveniles doubles etc
 #mammal_data <- mutate(itv_mammal_data, 
                      # individual =  as.character(tagID), na.rm=TRUE,
                      # year = year(collectDate), logweight=log(weight)) 
@@ -52,14 +45,57 @@ mammal_data2 <- itv_mammal_data%>%
                 filter(collectDate==min(collectDate))%>% #for recaptures, take the earliest record
                 ungroup()%>%
                 mutate(tax_Site = paste(taxonID, siteID, sep = "_"))#make taxa by site designation
-                
+
+
+
+####calculating richness as a covaraite
+#note that this is calculating richness after removing unidentified sp but before removing site/taxa combos with <5 inividuals--talk about with group
+# generate vectors of abundances by species for each site
+mammaltables <- mammal_data2  %>% 
+  group_by(siteID) %>% 
+  do(t = table(.$taxonID))
+
+# Name the list of vectors
+mamx <- lapply(mammaltables$t, as.numeric)
+names(mamx) <- mammaltables$siteID
+
+# Calculate asymptotic richness estimator
+set.seed(46545)
+richness_estimators <- iNEXT(x=mamx, q=0, datatype='abundance', size = c(5,10,50,100,500,1000,2000,3000,4000))
+
+#Estimtes for each site )species rich, shannon, simpson)
+richness_estimators$AsyEst
+
+# Calculate Chao1 richness estimator and combine all richness estimators by site. (not sure what this does of if it used?)
+#chao <- function(x) {
+ # xcomm <- table(x$taxonID)
+ # S_obs <- length(xcomm)
+  #f1 <- sum(xcomm == 1)
+  #f2 <- sum(xcomm == 2)
+  #return(data.frame(chao1 = S_obs + (f1 * (f1 - 1)) / (2 * (f2 + 1))))
+#}
+
+
+#just grab richness by site
+asymptotic_richness <- richness_estimators$AsyEst %>% 
+                       filter(Diversity == 'Species richness') 
+
+#name site id "siteID" to match other data frame
+asymptotic_richness$siteID <- factor(asymptotic_richness$Site, levels=asymptotic_richness$Site[order(asymptotic_richness$Observed)])#make siteID column to left join
+
+#join species richness to data frame
+mammal_data3<-mammal_data2%>%
+      left_join(., asymptotic_richness, by= "siteID")
+
+####remove species that have fewer than 5 individuals in a given site (we can change this threshold, talk to group)
+#also note, we can recalculate site richness after removing these species...
 #make list of species/site combos that have <5 individuals  
-abund_filt<-mammal_data2%>%
+abund_filt<-mammal_data3%>%
             dplyr::count(tax_Site) %>%
             filter(n>4)
 
-#remove those species/site combos and filter sites with 
-high_abun_mam<-mammal_data2[mammal_data2$tax_Site %in% abund_filt$tax_Site, ]     
+#remove those species/site combos and filter sites with <1 species 
+high_abun_mam<-mammal_data3[mammal_data3$tax_Site %in% abund_filt$tax_Site, ]%>%     
       filter(Observed >1)
 
 
@@ -85,8 +121,8 @@ o_stat_mam <- high_abun_mam %>%
 
 
 #select the env columns from the matrix to use with ostats output
-#o_env <- svl_site_input %>%
-  #select(-SITE, -USNM ,-ID, -SVL)
+mam_env <- high_abun_mam %>%
+           select(siteID, elevation ,nlcdClass,decimalLatitude,decimalLongitude )
 
 # Group the svl data by siteID and taxonID and look at the summary 
 o_stat_mam  %>%
