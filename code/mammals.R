@@ -11,7 +11,11 @@ library(Ostats)
 library(ggplot2)
 library(iNEXT)
 
-#note that I am setting awd here in the shared files from the G-drive, not using the path in the Rproject
+
+#site info used in 2016 to compare later
+q_dat<-read.csv("C:/Users/bbaiser/Documents/GitHub/ITV/crosstaxa/data/q_site_vars.csv")
+
+#note that I am setting a wd here in the shared files from the G-drive, not using the path in the Rproject
 setwd("G:/Shared drives/MacrosystemsBiodiversity/data/organism/L0/neon_downloads")
 
 #read in neon mammal data from g-drive
@@ -21,14 +25,14 @@ load("DP1.10072.001.Rdata")
 mam_dat<-lapply(neondata, as_tibble)
 head(mam_dat)
 
-#variable descriptions
+#variable descriptions i.e. metadata
 #vars<-mam_dat$variables_10072
 
-#this is the tibble with the itv data (similar data sheet to what Q used for the ecography paper)
+#this is the tibble with the itv data 
 itv_mammal_data<-mam_dat$mam_pertrapnight
 head(itv_mammal_data)
 
-# Get rid of all non-target taxa and combine different columns that were used for individual IDs in different contexts.
+####clean data#####
 
 #this one does not remove juveniles doubles etc
 #mammal_data <- mutate(itv_mammal_data, 
@@ -48,7 +52,7 @@ mammal_data2 <- itv_mammal_data%>%
 
 
 
-####calculating richness as a covaraite
+####calculating richness as a covariate
 #note that this is calculating richness after removing unidentified sp but before removing site/taxa combos with <5 inividuals--talk about with group
 # generate vectors of abundances by species for each site
 mammaltables <- mammal_data2  %>% 
@@ -63,7 +67,7 @@ names(mamx) <- mammaltables$siteID
 set.seed(46545)
 richness_estimators <- iNEXT(x=mamx, q=0, datatype='abundance', size = c(5,10,50,100,500,1000,2000,3000,4000))
 
-#Estimtes for each site )species rich, shannon, simpson)
+#Estimtes for each site (species rich, shannon, simpson)
 richness_estimators$AsyEst
 
 # Calculate Chao1 richness estimator and combine all richness estimators by site. (not sure what this does of if it used?)
@@ -100,10 +104,6 @@ high_abun_mam<-mammal_data3[mammal_data3$tax_Site %in% abund_filt$tax_Site, ]%>%
 
 
 
-
-
-
-
 # 6. Calculate overlap statistics and null effect sizes -------------------
 
 
@@ -118,7 +118,7 @@ o_stat_mam <- high_abun_mam %>%
 
 #select the env columns from the matrix to use with ostats output (need site level vars here...)
 mam_env <- high_abun_mam %>%
-           select(siteID,Observed )
+           select(siteID,Observed)
 
 # Group the mam data by siteID and taxonID and look at the summary 
 o_stat_mam  %>%
@@ -152,19 +152,20 @@ mam_output<-ostats_output%>%
 #need code here to save out OSTATS
 #write.csv(mam_output,"outputs/overlap_5_14.csv")
 
-
+#subset sites used in Read et al 2018
+q_sites<-mam_output[mam_output$siteID %in% q_dat$siteID, ]
 
 ####Analyze ostats output####
  #output from above if you don't call it in
 #read.csv("outputs/ostats_outputv1.csv")#all data with only 1 species sites removed
-select(mam_output,siteID, logweight, Observed)%>%
+select(q_sites,siteID, logweight, Observed)%>%
         arrange(.,logweight)
 
 #run some models...
-mod<-lm(logweight~Observed, data=mam_output)
+mod<-lm(logweight.1~Observed, data=q_sites)
 summary(mod)
 plot(mod)
-plot(mam_output$Observed, mam_output$logweight.1)
+plot(q_sites$Observed, q_sites$logweight)
 
 #Plot univariate relationships
 ggplot(svl_overlap2, aes(x=BIO1, y=overlaps_norm)) + 
