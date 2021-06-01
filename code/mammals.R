@@ -13,10 +13,11 @@ library(iNEXT)
 
 
 #site info used in 2016 to compare later
-q_dat<-read.csv("C:/Users/bbaiser/Documents/GitHub/ITV/crosstaxa/data/q_site_vars.csv")
+#q_dat<-read.csv("C:/Users/bbaiser/Documents/GitHub/ITV/crosstaxa/data/q_site_vars.csv")
 
 #family and order for all species
-family_order<-read.csv("C:/Users/bbaiser/Documents/GitHub/ITV/crosstaxa/data/family_order.csv")
+#family_order<-read.csv("C:/Users/bbaiser/Documents/GitHub/ITV/crosstaxa/data/family_order.csv")
+
 
 #get family and order for species used in read et al 2018
 #q_raw<-read.csv("C:/Users/bbaiser/Documents/GitHub/ITV/crosstaxa/data/Q_raw_NEON_mammal_data.csv")%>% 
@@ -31,6 +32,21 @@ setwd("G:/Shared drives/MacrosystemsBiodiversity/data/organism/L0/neon_downloads
 
 #read in neon mammal data from g-drive
 load("DP1.10072.001.Rdata")
+
+#read in taxonomy data for all species from g-drive and filter relevent columns
+tax<-read.csv("../neon_taxa/OS_TAXON_SMALL_MAMMAL-20200129T161511.csv")%>%
+     select(taxonID, acceptedTaxonID,vernacularName,taxonProtocolCategory,taxonRank,order,family,subfamily,tribe,genus)
+
+#filter keeping target, rodents with species designation
+
+tax_reduced<-tax%>%
+  filter(order == 'Rodentia',taxonProtocolCategory == 'target', taxonRank=='species')#keeping target, rodents with species designation
+  
+
+
+  
+  
+
 
 #make tibbles
 mam_dat<-lapply(neondata, as_tibble)
@@ -49,20 +65,29 @@ colnames(itv_mammal_data)
 #mammal_data <- mutate(itv_mammal_data, 
                      # individual =  as.character(tagID), na.rm=TRUE,
                      # year = year(collectDate), logweight=log(weight)) 
+mammal_dataT <- itv_mammal_data%>%
+                filter(taxonID%in%tax_reduced$taxonID) #join with neon taxonomy file
+  
+unique(mammal_dataT$taxonID) 
+  
 
-colnames(itv_mammal_data)
 mammal_data2 <- itv_mammal_data%>%
+               left_join(.,tax,by= "taxonID")%>% #join with neon taxonomy file
                 mutate(year = year(collectDate), logweight=log(weight))%>% #make a year column and a log weight column
                 drop_na(tagID, scientificName)%>% # get rid of empty trap (i.e. NA tags) and species designation na
-                filter(lifeStage=="adult",order == 'Rodentia')%>% #take only adults and rodents
+                filter(lifeStage=="adult",order == 'Rodentia',taxonProtocolCategory == 'target')%>% #take only adults, rodents, target species, a
+                filter(!taxonID%in% c('SOCISOHA','REMEREMO','PEMAPEBO','PELEPEMA','PEKEPEMA','PEGOPELE','PEFLPEFV','PEBOPETR','DIORDIMI','CHINCHPE','CHERCHPE','CHERCHIN'))%>%              
                 filter( !grepl('sp\\.', scientificName))%>%#remove identification with sp. (e.g.,Peromyscus sp.)
                 group_by(tagID) %>% #group individuals by tag (i.e., recaptures) 
                 filter(collectDate==min(collectDate))%>% #for recaptures, take the earliest record
                 ungroup()%>%
-                mutate(tax_Site = paste(taxonID, siteID, sep = "_"))#make taxa by site designation
+                mutate(tax_Site = paste(acceptedTaxonID, siteID, sep = "_"))#make taxa by site designation
 
-
-filter(order == 'Rodentia', taxonProtocolCategory == 'target'
+          
+             bb<-itv_mammal_data%>%
+             filter(!taxonID%in% c('SOCISOHA','REMEREMO','PEMAPEBO','PELEPEMA','PEKEPEMA','PEGOPELE','PEFLPEFV','PEBOPETR','DIORDIMI','CHINCHPE','CHERCHPE','CHERCHIN'))
+             unique((mammal_data2$taxonID))
+             
 ####calculating richness as a covariate
 #note that this is calculating richness after removing unidentified sp but before removing site/taxa combos with <5 inividuals--talk about with group
 # generate vectors of abundances by species for each site
