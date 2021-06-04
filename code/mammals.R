@@ -37,15 +37,12 @@ load("DP1.10072.001.Rdata")
 tax<-read.csv("../neon_taxa/OS_TAXON_SMALL_MAMMAL-20200129T161511.csv")%>%
      select(taxonID, acceptedTaxonID,vernacularName,taxonProtocolCategory,taxonRank,order,family,subfamily,tribe,genus)
 
-#filter keeping target, rodents with species designation
-
+#filter taxa list keeping target, rodents with species designation
 tax_reduced<-tax%>%
-  filter(order == 'Rodentia',taxonProtocolCategory == 'target', taxonRank=='species')#keeping target, rodents with species designation
+  filter(order == 'Rodentia',taxonProtocolCategory == 'target', taxonRank%in% c('species','subspecies'))#keeping target, rodents with species designation
   
+###WHAT TO DO WITH SUBSPECIES? HERE WE KEEP THEM
 
-
-  
-  
 
 
 #make tibbles
@@ -64,34 +61,34 @@ colnames(itv_mammal_data)
 #this one does not remove juveniles doubles etc
 #mammal_data <- mutate(itv_mammal_data, 
                      # individual =  as.character(tagID), na.rm=TRUE,
-                     # year = year(collectDate), logweight=log(weight)) 
-mammal_dataT <- itv_mammal_data%>%
-                filter(taxonID%in%tax_reduced$taxonID) #join with neon taxonomy file
-  
-unique(mammal_dataT$taxonID) 
-  
 
-mammal_data2 <- itv_mammal_data%>%
-               left_join(.,tax,by= "taxonID")%>% #join with neon taxonomy file
-                mutate(year = year(collectDate), logweight=log(weight))%>% #make a year column and a log weight column
-                drop_na(tagID, scientificName)%>% # get rid of empty trap (i.e. NA tags) and species designation na
-                filter(lifeStage=="adult",order == 'Rodentia',taxonProtocolCategory == 'target')%>% #take only adults, rodents, target species, a
-                filter(!taxonID%in% c('SOCISOHA','REMEREMO','PEMAPEBO','PELEPEMA','PEKEPEMA','PEGOPELE','PEFLPEFV','PEBOPETR','DIORDIMI','CHINCHPE','CHERCHPE','CHERCHIN'))%>%              
-                filter( !grepl('sp\\.', scientificName))%>%#remove identification with sp. (e.g.,Peromyscus sp.)
+mammal_dataT <- itv_mammal_data%>%
+                filter(taxonID%in%tax_reduced$taxonID)%>% #join with neon taxonomy file
+                mutate(year = year(collectDate), logweight=log(weight))%>%
+                filter(lifeStage=="adult")%>%#Keep only adult
                 group_by(tagID) %>% #group individuals by tag (i.e., recaptures) 
                 filter(collectDate==min(collectDate))%>% #for recaptures, take the earliest record
                 ungroup()%>%
-                mutate(tax_Site = paste(acceptedTaxonID, siteID, sep = "_"))#make taxa by site designation
+                mutate(tax_Site = paste(taxonID, siteID, sep = "_"))
+
+#mammal_data2 <- itv_mammal_data%>%
+              # left_join(.,tax,by= "taxonID")%>% #join with neon taxonomy file
+               # mutate(year = year(collectDate), logweight=log(weight))%>% #make a year column and a log weight column
+                #drop_na(tagID, scientificName)%>% # get rid of empty trap (i.e. NA tags) and species designation na
+                #filter(lifeStage=="adult",order == 'Rodentia',taxonProtocolCategory == 'target')%>% #take only adults, rodents, target species, a
+                #filter(!taxonID%in% c('SOCISOHA','REMEREMO','PEMAPEBO','PELEPEMA','PEKEPEMA','PEGOPELE','PEFLPEFV','PEBOPETR','DIORDIMI','CHINCHPE','CHERCHPE','CHERCHIN'))%>%              
+                #filter( !grepl('sp\\.', scientificName))%>%#remove identification with sp. (e.g.,Peromyscus sp.)
+                #group_by(tagID) %>% #group individuals by tag (i.e., recaptures) 
+                #filter(collectDate==min(collectDate))%>% #for recaptures, take the earliest record
+                #ungroup()%>%
+                #mutate(tax_Site = paste(acceptedTaxonID, siteID, sep = "_"))#make taxa by site designation
 
           
-             bb<-itv_mammal_data%>%
-             filter(!taxonID%in% c('SOCISOHA','REMEREMO','PEMAPEBO','PELEPEMA','PEKEPEMA','PEGOPELE','PEFLPEFV','PEBOPETR','DIORDIMI','CHINCHPE','CHERCHPE','CHERCHIN'))
-             unique((mammal_data2$taxonID))
-             
+           
 ####calculating richness as a covariate
 #note that this is calculating richness after removing unidentified sp but before removing site/taxa combos with <5 inividuals--talk about with group
 # generate vectors of abundances by species for each site
-mammaltables <- mammal_data2  %>% 
+mammaltables <- mammal_dataT  %>% 
   group_by(siteID) %>% 
   do(t = table(.$taxonID))
 
@@ -124,7 +121,7 @@ asymptotic_richness <- richness_estimators$AsyEst %>%
 asymptotic_richness$siteID <- factor(asymptotic_richness$Site, levels=asymptotic_richness$Site[order(asymptotic_richness$Observed)])#make siteID column to left join
 
 #join species richness to data frame
-mammal_data3<-mammal_data2%>%
+mammal_data3<-mammal_dataT%>%
       left_join(., asymptotic_richness, by= "siteID")
 
 
