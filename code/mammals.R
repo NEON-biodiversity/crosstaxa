@@ -40,6 +40,10 @@ tax<-read.csv("../neon_taxa/OS_TAXON_SMALL_MAMMAL-20200129T161511.csv")%>%
 #filter taxa list keeping target, rodents with species designation
 tax_reduced<-tax%>%
   filter(order == 'Rodentia',taxonProtocolCategory == 'target', taxonRank%in% c('species','subspecies'))#keeping target, rodents with species designation
+
+site_env<-read.csv("C:/Users/bbaiser/Documents/GitHub/ITV/crosstaxa/data/NEON_Field_Site_Metadata_20210226_0.csv")%>%
+          dplyr::rename (.,siteID = field_site_id)
+
   
 ###WHAT TO DO WITH SUBSPECIES? HERE WE KEEP THEM
 
@@ -162,8 +166,12 @@ o_stat_mam <- high_abun_mam %>%
 
 
 #select the env columns from the matrix to use with ostats output (need site level vars here...)
+env<-site_env[site_env$siteID %in% o_stat_mam$siteID, ]    
+
+
 mam_env <- high_abun_mam %>%
            select(siteID,Observed)
+
 
 # Group the mam data by siteID and taxonID and look at the summary 
 o_stat_mam  %>%
@@ -198,63 +206,27 @@ mam_output<-ostats_output%>%
 #write.csv(mam_output,"outputs/overlap_5_14.csv")
 
 #subset sites used in Read et al 2018
-q_sites<-mam_output[mam_output$siteID %in% q_dat$siteID, ]
+#q_sites<-mam_output[mam_output$siteID %in% q_dat$siteID, ]
 
 ####Analyze ostats output####
  #output from above if you don't call it in
 #read.csv("outputs/ostats_outputv1.csv")#all data with only 1 species sites removed
-select(q_sites,siteID, logweight, Observed)%>%
+select(mam_output,siteID, logweight, Observed)%>%
         arrange(.,logweight)
 
 #run some models...
-mod<-lm(Observed~logweight.1, data=q_sites)
+mod<-lm(Observed~logweight, data=mam_output)
 summary(mod)
 plot(mod)
-plot( q_sites$logweight,q_sites$Observed,)
 
 #Plot univariate relationships
-ggplot(svl_overlap2, aes(x=BIO1, y=overlaps_norm)) + 
+ggplot(mam_output, aes(x=logweight, y=Observed)) + 
   geom_point()+
-  geom_smooth(method=lm)
+  geom_smooth(method= "loess")+
+  xlab("Overlap")+
+  ylab ("Richness")
 
 
-
-
-####calculating richness####
-
-# Get rid of poorly identified individuals (those marked sp.) because they should not count for our sampling . . . they are spurious singletons.
-# Then generate vectors of abundances by species for each site
-#note that this is calculated on al
-mammaltables <- high_abun_mam %>% 
-  group_by(siteID) %>% 
-  do(t = table(.$taxonID))
-
-
-# Name the list of vectors
-mamx <- lapply(mammaltables$t, as.numeric)
-names(mamx) <- mammaltables$siteID
-
-# Calculate asymptotic richness estimator
-set.seed(46545)
-richness_estimators <- iNEXT(x=mamx, q=0, datatype='abundance', size = c(5,10,50,100,500,1000,2000,3000,4000))
-
-#Estimtes for each site )species rich, shannon, simpson)
-richness_estimators$AsyEst
-
-# Calculate Chao1 richness estimator and combine all richness estimators by site. (not sure what this does of if it used?)
-chao <- function(x) {
-  xcomm <- table(x$taxonID)
-  S_obs <- length(xcomm)
-  f1 <- sum(xcomm == 1)
-  f2 <- sum(xcomm == 2)
-  return(data.frame(chao1 = S_obs + (f1 * (f1 - 1)) / (2 * (f2 + 1))))
-}
-
-
-#just grab richness by site
-asymptotic_richness <- richness_estimators$AsyEst %>% 
-  filter(Diversity == 'Species richness') 
-asymptotic_richness$siteID <- factor(asymptotic_richness$Site, levels=asymptotic_richness$Site[order(asymptotic_richness$Observed)])#make siteID column to left join
 
 
 
