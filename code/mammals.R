@@ -41,7 +41,7 @@ tax<-read.csv("../neon_taxa/OS_TAXON_SMALL_MAMMAL-20200129T161511.csv")%>%
 tax_reduced<-tax%>%
   filter(order == 'Rodentia',taxonProtocolCategory == 'target', taxonRank%in% c('species','subspecies'))#keeping target, rodents with species designation
 
-site_env<-read.csv("C:/Users/bbaiser/Documents/GitHub/ITV/crosstaxa/data/NEON_Field_Site_Metadata_20210226_0.csv")%>%
+site_env<-read.csv("C:/Users/bbaiser/Documents/GitHub/ITV/crosstaxa/data/NEON_Field_Site_Metadata_20210226_0_mod.csv")%>%
           dplyr::rename (.,siteID = field_site_id)
 
   
@@ -166,11 +166,14 @@ o_stat_mam <- high_abun_mam %>%
 
 
 #select the env columns from the matrix to use with ostats output (need site level vars here...)
-env<-site_env[site_env$siteID %in% o_stat_mam$siteID, ]    
+site_rich <- high_abun_mam %>%#take the site richness and site id to join to env below
+  select(siteID,Observed)
 
+#join site richness to other env. vars
+env<-site_env[site_env$siteID %in% o_stat_mam$siteID, ]%>%
+  left_join(.,unique(site_rich), by = "siteID")
+     
 
-mam_env <- high_abun_mam %>%
-           select(siteID,Observed)
 
 
 # Group the mam data by siteID and taxonID and look at the summary 
@@ -200,7 +203,7 @@ colnames(ostats_output)
 
 mam_output<-ostats_output%>%
   mutate(siteID= row.names(ostats_output))%>%#give Ostats output a site id column from the current rownames
-  left_join(.,unique(mam_env), by = "siteID")%>% #join site env data to ostats_output/ need to fix this for other vars
+  left_join(.,env, by = "siteID")%>% #join site env data to ostats_output
   drop_na(logweight)
 #need code here to save out OSTATS
 #write.csv(mam_output,"outputs/overlap_5_14.csv")
@@ -215,16 +218,18 @@ select(mam_output,siteID, logweight, Observed)%>%
         arrange(.,logweight)
 
 #run some models...
-mod<-lm(Observed~logweight, data=mam_output)
+mod<-lm(Observed~field_mean_annual_precipitation_mm+logweight, data=mam_output)
 summary(mod)
 plot(mod)
-
+car::vif(mod)
+field_mean_canopy_height_m++field_mean_annual_temperature_C+field_mean_annual_precipitation_mm
 #Plot univariate relationships
-ggplot(mam_output, aes(x=logweight, y=Observed)) + 
+ggplot(mam_output, aes(x=field_mean_canopy_height_m, y=logweight)) + 
   geom_point()+
-  geom_smooth(method= "loess")+
-  xlab("Overlap")+
-  ylab ("Richness")
+  geom_smooth(method=lm,na.rm=T)+
+  #geom_smooth(method= "loess")+
+  xlab("driver")+
+  ylab ("Overlap")
 
 
 
