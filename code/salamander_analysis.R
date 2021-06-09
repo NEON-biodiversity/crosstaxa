@@ -1,3 +1,6 @@
+#Salamander Analysis
+rm(list=ls())
+
 #Libraries
 #devtools::install_github('NEON-biodiversity/Ostats')
 library(dplyr)
@@ -10,18 +13,17 @@ library(ggplot2)
 
 
 #salamander data----
+#note that I am setting a wd here in the shared files from the G-drive, not using the path in the Rproject
+setwd("G:/Shared drives/MacrosystemsBiodiversity/data/organism/L0/non_neon_observations/Adams_salamander")
 
 #individual svl measurements
-
-sal_SVL<-read.csv("./data/MasterSVLData.csv")
-
+sal_SVL<-read.csv("MasterSVLData.csv")
 head(sal_SVL)
 
 
 #site data
 
-sal_site<-read.csv("./data/sitedata.csv")
-
+sal_site<-read.csv("sitedata.csv")
 head(sal_site)
 
 
@@ -33,7 +35,7 @@ sal_site<-dplyr::rename(sal_site,
               Longitude = Long2)
 
 
-#make a new column from a concatenation of lat and long called lat_long for the svl data set
+#make a new column from a concatenation of lat and long called lat_long as a unique site identifier for the svl data set
 sal_SVL <- sal_SVL%>% mutate(
            lat_long = paste(Latitude, Longitude, sep = "_"))
 
@@ -75,27 +77,59 @@ svl_site_merged <- svl_site%>% mutate(
   SITE2 = paste(SITE, Elevation, sep = "_"))
 
 
+####calculating richness as a covariate
+#note that this is calculating richness after removing unidentified sp but before removing site/taxa combos with <5 individuals --talk about with group
+# generate vectors of abundances by species for each site
+salTables <- svl_site_merged  %>% 
+  group_by( SITE2) %>% 
+  do(t = table(.$ID))
 
-#get species counts per site and remove sites with < 2 species
-svl_site_filt<-ddply(svl_site_merged, .(SITE2), mutate, count = length(unique(ID)))%>%
-  filter(count >1)
+# Name the list of vectors
+mamx <- lapply(salTables$t, as.numeric)
+names(mamx) <- salTables$SITE2
+
+# Calculate asymptotic richness estimator
+set.seed(46545)
+richness_estimators <- iNEXT(x=mamx, q=0, datatype='abundance', size = c(5,10,50,100,500,1000,2000,3000,4000))
+
+#Estimtes for each site (species rich, shannon, simpson)
+richness_estimators$AsyEst
+
+
+#just grab richness by site (or grab other diversity indicators?)
+asymptotic_richness <- richness_estimators$AsyEst %>% 
+  filter(Diversity == 'Species richness') 
+
+#name site id "siteID" to match other data frame
+asymptotic_richness$SITE2 <- factor(asymptotic_richness$Site, levels=asymptotic_richness$Site[order(asymptotic_richness$Observed)])#make siteID column to left join
+
+#join species richness to data frame
+svl_wRich<-svl_site_merged%>%
+  left_join(., asymptotic_richness, by= "SITE2")
+
+
+
+#remove sites with < 2 species
+svl_site_filt<-svl_wRich%>%
+  filter(Observed >1)
 
 head(svl_site_filt)
 
 
-#Figure out which species/site combinations s with less than 5 individuals 
-
+#Figure out which species/site combinations  with greater than 5 individuals 
 hi_abund<-svl_site_filt %>%
-  dplyr::count(SITE2, ID) %>%
-  filter(n <5)
+          dplyr::count(SITE2, ID) %>%
+          filter(n >4)
 #filter(n >4) #will allow us to keep sites where some species have 5 or more individual
 # however, we would have to filter out this with only 1 ( filter(count >1))species left, discuss with group
 
 #take svl data for only those sites where all species have >4 individuals
-svl_site_input<-svl_site_filt[!svl_site_filt$SITE2 %in% hi_abund$SITE2, ]
+svl_site_input<-svl_site_filt[svl_site_filt$SITE2 %in% hi_abund$SITE2, ]%>%
+                filter(Observed >1)
 
 #this leaves us with 323 valid sites
 length(unique(svl_site_input$SITE2))
+length(unique(hi_abund$SITE2))
 
 ####don't think i need this anymore (check)
 #try to get an env data set where there is one row per site. this will be used for post-ostats analysis.
@@ -112,7 +146,7 @@ length(unique(svl_site_input$SITE2))
 # Use the mutate function to add a new column named "log_SVL" to log-transform the measurements.
 
 o_data <- svl_site_input %>%
-  filter(SITE %in% c('14','83', '3045'))%>% #need to filter for 3 sites if you want the mean plots to work 
+  #filter(SITE %in% c('14','83', '3045'))%>% #need to filter for 3 sites if you want the mean plots to work 
   select(SITE2, ID, SVL) %>%
   filter(!is.na(SVL)) %>%
   mutate(log_SVL = log10(SVL))
@@ -134,14 +168,15 @@ head(o_data)
 
 ####run Ostats function: copied from vignette####
 
-overlap<- Ostats(traits = as.matrix(o_data[,'log_SVL']),
+overlap_sal<- Ostats(traits = as.matrix(o_data[,'log_SVL']),
                          sp = factor(o_data$ID),
                          plots = factor(o_data$SITE2),
-                         data_type = "linear")
+                         data_type = "linear"
+                         nperm=1)
 
 #make ostats a data frame
 
-ostats_output<-as.data.frame(overlap)
+ostats_output<-as.data.frame(overlap_sal)
 
 #give Ostats output a site id (SITE2) column from the current rownames and join to env data
 
@@ -163,10 +198,10 @@ svl_overlap2<-na.omit(svl_overlap)#remove rows with NA
 
 
 #run some models...
-mod<-lm(overlaps_norm~as.numeric(Latitude)+count+ Elevation+BIO1, data=svl_overlap2)
+mod<-lm(overlaps_norm~+Observed, data=svl_overlap2)
 summary(mod)
 plot(mod)
-plot(svl_overlap2$count, svl_overlap2$overlaps_norm)
+plot( svl_overlap2$overlaps_norm, svl_overlap2$Observed)
 
 #Plot univariate relationships
 ggplot(svl_overlap2, aes(x=BIO1, y=overlaps_norm)) + 
