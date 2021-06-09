@@ -1,6 +1,7 @@
 #small mammal analysis
 rm(list=ls())
 
+#packages
 #devtools::install_github('NEON-biodiversity/Ostats')
 library(tidyverse)
 library(spData)
@@ -12,35 +13,21 @@ library(ggplot2)
 library(iNEXT)
 
 
-#site info used in 2016 to compare later
-#q_dat<-read.csv("C:/Users/bbaiser/Documents/GitHub/ITV/crosstaxa/data/q_site_vars.csv")
-
-#family and order for all species
-#family_order<-read.csv("C:/Users/bbaiser/Documents/GitHub/ITV/crosstaxa/data/family_order.csv")
-
-
-#get family and order for species used in read et al 2018
-#q_raw<-read.csv("C:/Users/bbaiser/Documents/GitHub/ITV/crosstaxa/data/Q_raw_NEON_mammal_data.csv")%>% 
-      # select(taxonID,scientificName, family, order) %>% 
-      # unique(.)%>%
-      # drop_na(scientificName, family) %>% 
-       #filter( !grepl('sp\\.', scientificName))
-
-
 #note that I am setting a wd here in the shared files from the G-drive, not using the path in the Rproject
 setwd("G:/Shared drives/MacrosystemsBiodiversity/data/organism/L0/neon_downloads")
 
 #read in neon mammal data from g-drive
 load("DP1.10072.001.Rdata")
 
-#read in taxonomy data for all species from g-drive and filter relevent columns
+#read in the NEON taxonomy data for all species from g-drive and filter relevant columns
 tax<-read.csv("../neon_taxa/OS_TAXON_SMALL_MAMMAL-20200129T161511.csv")%>%
      select(taxonID, acceptedTaxonID,vernacularName,taxonProtocolCategory,taxonRank,order,family,subfamily,tribe,genus)
 
-#filter taxa list keeping target, rodents with species designation
+#filter taxa list keeping targeted rodents with species designations
 tax_reduced<-tax%>%
   filter(order == 'Rodentia',taxonProtocolCategory == 'target', taxonRank%in% c('species','subspecies'))#keeping target, rodents with species designation
 
+#read in NEON site environmental data
 site_env<-read.csv("C:/Users/bbaiser/Documents/GitHub/ITV/crosstaxa/data/NEON_Field_Site_Metadata_20210226_0_mod.csv")%>%
           dplyr::rename (.,siteID = field_site_id)
 
@@ -48,12 +35,11 @@ site_env<-read.csv("C:/Users/bbaiser/Documents/GitHub/ITV/crosstaxa/data/NEON_Fi
 ###WHAT TO DO WITH SUBSPECIES? HERE WE KEEP THEM
 
 
-
 #make tibbles
 mam_dat<-lapply(neondata, as_tibble)
 head(mam_dat)
 
-#variable descriptions i.e. metadata
+#variable descriptions from NEON, i.e. metadata
 #vars<-mam_dat$variables_10072
 
 #this is the tibble with the itv data 
@@ -62,18 +48,14 @@ colnames(itv_mammal_data)
 
 ####clean data#####
 
-#this one does not remove juveniles doubles etc
-#mammal_data <- mutate(itv_mammal_data, 
-                     # individual =  as.character(tagID), na.rm=TRUE,
-
 mammal_dataT <- itv_mammal_data%>%
                 filter(taxonID%in%tax_reduced$taxonID)%>% #join with neon taxonomy file
-                mutate(year = year(collectDate), logweight=log(weight))%>%
-                filter(lifeStage=="adult")%>%#Keep only adult
+                mutate(year = year(collectDate), logweight=log(weight))%>% #CREATE YEAR COLUMN and log weight column
+                filter(lifeStage=="adult")%>% #Keep only adults
                 group_by(tagID) %>% #group individuals by tag (i.e., recaptures) 
                 filter(collectDate==min(collectDate))%>% #for recaptures, take the earliest record
                 ungroup()%>%
-                mutate(tax_Site = paste(taxonID, siteID, sep = "_"))
+                mutate(tax_Site = paste(taxonID, siteID, sep = "_")) #make a unique species-by-site identifier
 
 #mammal_data2 <- itv_mammal_data%>%
               # left_join(.,tax,by= "taxonID")%>% #join with neon taxonomy file
@@ -90,7 +72,7 @@ mammal_dataT <- itv_mammal_data%>%
           
            
 ####calculating richness as a covariate
-#note that this is calculating richness after removing unidentified sp but before removing site/taxa combos with <5 inividuals--talk about with group
+#note that this is calculating richness after removing unidentified sp but before removing site/taxa combos with <5 individuals --talk about with group
 # generate vectors of abundances by species for each site
 mammaltables <- mammal_dataT  %>% 
   group_by(siteID) %>% 
@@ -117,7 +99,7 @@ richness_estimators$AsyEst
 #}
 
 
-#just grab richness by site
+#just grab richness by site (or grab other diverstiy indicators?)
 asymptotic_richness <- richness_estimators$AsyEst %>% 
                        filter(Diversity == 'Species richness') 
 
@@ -129,19 +111,11 @@ mammal_data3<-mammal_dataT%>%
       left_join(., asymptotic_richness, by= "siteID")
 
 
-#here i join the cleaned data with the family/order data from read etal and save it out
-#I then looked up the order and family for the new species outside of R
-#THIS ONLY NEEDED TO BE DONE ONCE, HENCE COMMENTED OUT
-#test2<-mammal_data3%>%
-  #left_join(., q_raw, by= "taxonID")%>%
-  #select(taxonID,scientificName.x,scientificName.y, family, order)%>%
-  #unique(.)
-#SAVE THIS OUT
-#write.csv(test2,"C:/Users/bbaiser/Documents/GitHub/ITV/crosstaxa/data/family_order.csv")
 
 
 ####remove species that have fewer than 5 individuals in a given site (we can change this threshold, talk to group)
 #also note, we can recalculate site richness after removing these species...
+
 #make list of species/site combos that have <5 individuals  
 abund_filt<-mammal_data3%>%
             dplyr::count(tax_Site) %>%
@@ -196,33 +170,34 @@ overlap_mam<- Ostats(traits = as.matrix(o_stat_mam[,'logweight']),
 head(overlap_mam$overlaps_norm)
 
 #make ostats a data frame
-
 ostats_output<-as.data.frame(overlap_mam)
 colnames(ostats_output)
-#give Ostats output a site id (SITE2) column from the current rownames and join to env data
 
+#give Ostats output a site id column from the current rownames and join to env data
 mam_output<-ostats_output%>%
   mutate(siteID= row.names(ostats_output))%>%#give Ostats output a site id column from the current rownames
   left_join(.,env, by = "siteID")%>% #join site env data to ostats_output
   drop_na(logweight)
+
 #need code here to save out OSTATS
 #write.csv(mam_output,"outputs/overlap_5_14.csv")
 
-#subset sites used in Read et al 2018
-#q_sites<-mam_output[mam_output$siteID %in% q_dat$siteID, ]
 
 ####Analyze ostats output####
- #output from above if you don't call it in
+
+#output from above if you don't call it in
 #read.csv("outputs/ostats_outputv1.csv")#all data with only 1 species sites removed
 select(mam_output,siteID, logweight, Observed)%>%
         arrange(.,logweight)
 
 #run some models...
-mod<-lm(Observed~field_mean_annual_precipitation_mm+logweight, data=mam_output)
+mod<-lm(Observed~field_mean_annual_temperature_C, data=mam_output)
 summary(mod)
 plot(mod)
 car::vif(mod)
+#long names for vars in model (cut/paste)
 field_mean_canopy_height_m++field_mean_annual_temperature_C+field_mean_annual_precipitation_mm
+
 #Plot univariate relationships
 ggplot(mam_output, aes(x=field_mean_canopy_height_m, y=logweight)) + 
   geom_point()+
