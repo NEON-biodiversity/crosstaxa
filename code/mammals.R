@@ -75,8 +75,8 @@ mammal_dataT <- itv_mammal_data%>%
 #note that this is calculating richness after removing unidentified sp but before removing site/taxa combos with <5 individuals --talk about with group
 # generate vectors of abundances by species for each site
 mammaltables <- mammal_dataT  %>% 
-  group_by(siteID) %>% 
-  do(t = table(.$taxonID))
+                group_by(siteID) %>% 
+                do(t = table(.$taxonID))
 
 # Name the list of vectors
 mamx <- lapply(mammaltables$t, as.numeric)
