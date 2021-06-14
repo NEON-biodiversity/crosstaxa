@@ -204,17 +204,18 @@ overlap2<-svl_overlap%>%
 str(overlap2)
 
 #run some models...
-mod<-lm(overlaps_norm~as.numeric(Latitude)+Observed+Elevation+BIO1, data=overlap2)
+mod<-lm(overlaps_norm~as.numeric(Latitude)+Observed, data=overlap2)
 
 summary(mod)
 plot(mod)
 plot( overlap2$Latitude,overlap2$overlaps_norm)
 
 #Plot univariate relationships
-ggplot(overlap2, aes(x=as.numeric(Latitude), y=overlaps_norm)) + 
+ggplot(overlap2, aes(x=overlaps_norm, y=Observed)) + 
 geom_point()+
-geom_smooth(method=lm)
-
+geom_smooth(method=lm)+
+xlab("Overlap")+
+ylab ("Richness")
 
 
 ####Work on plotting
