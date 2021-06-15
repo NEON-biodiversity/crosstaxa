@@ -49,7 +49,7 @@ colnames(itv_mammal_data)
 ####clean data#####
 
 mammal_dataT <- itv_mammal_data%>%
-                filter(taxonID%in%tax_reduced$taxonID)%>% #join with neon taxonomy file
+                filter(taxonID%in%tax_reduced$taxonID)%>% #take taxa from neon taxa filtered list
                 mutate(year = year(collectDate), logweight=log(weight))%>% #CREATE YEAR COLUMN and log weight column
                 filter(lifeStage=="adult")%>% #Keep only adults
                 group_by(tagID) %>% #group individuals by tag (i.e., recaptures) 
@@ -123,7 +123,7 @@ abund_filt<-mammal_data3%>%
 
 #remove those species/site combos and filter sites with <1 species 
 high_abun_mam<-mammal_data3[mammal_data3$tax_Site %in% abund_filt$tax_Site, ]%>%     
-      filter(Observed >1)
+               filter(Observed >1)
 
 
 
@@ -175,9 +175,9 @@ colnames(ostats_output)
 
 #give Ostats output a site id column from the current rownames and join to env data
 mam_output<-ostats_output%>%
-  mutate(siteID= row.names(ostats_output))%>%#give Ostats output a site id column from the current rownames
-  left_join(.,env, by = "siteID")%>% #join site env data to ostats_output
-  drop_na(logweight)
+            mutate(siteID= row.names(ostats_output))%>%#give Ostats output a site id column from the current rownames
+            left_join(.,env, by = "siteID")%>% #join site env data to ostats_output
+            drop_na(logweight)
 
 #need code here to save out OSTATS
 #write.csv(mam_output,"outputs/overlap_5_14.csv")
@@ -191,20 +191,21 @@ select(mam_output,siteID, logweight, Observed)%>%
         arrange(.,logweight)
 
 #run some models...
-mod<-lm(Observed~field_mean_annual_temperature_C, data=mam_output)
+mod<-lm(Observed~logweight+field_mean_annual_precipitation_mm, data=mam_output)
 summary(mod)
 plot(mod)
 car::vif(mod)
+
 #long names for vars in model (cut/paste)
 field_mean_canopy_height_m++field_mean_annual_temperature_C+field_mean_annual_precipitation_mm
 
 #Plot univariate relationships
-ggplot(mam_output, aes(x=field_mean_canopy_height_m, y=logweight)) + 
+ggplot(mam_output, aes(x=logweight, y=Observed)) + 
   geom_point()+
   geom_smooth(method=lm,na.rm=T)+
   #geom_smooth(method= "loess")+
-  xlab("driver")+
-  ylab ("Overlap")
+  xlab("Overlap")+
+  ylab ("Richness")
 
 
 
