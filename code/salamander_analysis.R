@@ -173,7 +173,7 @@ overlap_sal<- Ostats(traits = as.matrix(o_data[,'log_SVL']),
                          plots = factor(o_data$SITE2),
                          data_type = "linear",
                          nperm=1)
-
+?Ostats
 #make ostats a data frame
 
 ostats_output<-as.data.frame(overlap_sal)
@@ -193,7 +193,7 @@ sal_output<-ostats_output%>%
 ####Analyze ostats output####
 
 svl_overlap<-sal_output #output from above if you don't call it in
-#read.csv("outputs/ostats_outputv1.csv")#all data with only 1 species sites removed
+svl_overlap<-read.csv("outputs/ostats_outputv1.csv")#all data with only 1 species sites removed
 
 
 #remove na values for overlap norms. these are sites with only 1 species but not 
