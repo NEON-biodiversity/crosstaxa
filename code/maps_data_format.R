@@ -100,7 +100,7 @@ abund_filt<-bird_dat%>%
 high_abun_birds<-bird_dat[bird_dat$Spec_Stat %in% abund_filt$Spec_Stat, ]%>%     
                  filter(Observed >1)
 
-
+write.csv(high_abun_birds,"ben_birds_forQ.csv")
 ####calculate species richness again with species/site combos with less that 5 removed####
 # generate vectors of abundances by species for each site
 birdtables2 <- high_abun_birds %>% 
@@ -135,8 +135,9 @@ asymptotic_richness2$STATION <- factor(asymptotic_richness2$Site, levels=asympto
 #subset number of stations to run in reasonable time... 
 sub_station<-c("VINS","PATT","FTGI")
 
-dat_in <- high_abun_birds %>%
-  filter(STATION %in% sub_station)%>% 
+
+  dat_in <- high_abun_birds %>%
+  #filter(STATION %in% sub_station)%>% 
   select(STATION, SPEC, WEIGHT) %>%
   filter(!is.na(WEIGHT)) %>%
   mutate(log_WEIGHT = log10(WEIGHT))
@@ -154,20 +155,20 @@ head(dat_in)
 
 ####run Ostats function: copied from vignette####
 
-Ostats_example2 <- Ostats(traits = as.matrix(dat_in[,'log_WEIGHT']),
+Ostats_example3 <- Ostats(traits = as.matrix(dat_in[,'log_WEIGHT']),
                          sp = factor(dat_in$SPEC),
                          plots = factor(dat_in$STATION),
                          output = "mean",
                          data_type = "linear",
-                         nperm = 10)
+                         nperm = 1)
 
-Ostats_example2
+Ostats_example3
 
 
-head(Ostats_example$overlaps_norm)
+head(Ostats_example3$overlaps_norm)
 
 #make ostats a data frame
-ostats_output<-as.data.frame(Ostats_example)
+ostats_output<-as.data.frame(Ostats_example3)
 colnames(ostats_output)
 
 #give Ostats output a site id column from the current rownames and join to env data
@@ -202,7 +203,7 @@ car::vif(mod)
 field_mean_canopy_height_m++field_mean_annual_temperature_C+field_mean_annual_precipitation_mm
 
 #Plot univariate relationships
-ggplot(test, aes(x=log(log_WEIGHT), y=log(Observed.x)) )+ 
+ggplot(test, aes(x=log_WEIGHT, y=log(Observed.x)) )+ 
   geom_point()+
   geom_smooth(method=lm)+
   #geom_smooth(method= "loess")+
