@@ -2,7 +2,7 @@
 rm(list=ls())
 
 #packages
-#devtools::install_github('NEON-biodiversity/Ostats')
+devtools::install_github('NEON-biodiversity/Ostats')
 library(tidyverse)
 library(spData)
 library(sf)
@@ -23,9 +23,9 @@ load("DP1.10072.001.Rdata")
 tax<-read.csv("../neon_taxa/OS_TAXON_SMALL_MAMMAL-20200129T161511.csv")%>%
      select(taxonID, acceptedTaxonID,vernacularName,taxonProtocolCategory,taxonRank,order,family,subfamily,tribe,genus)
 
-#filter taxa list keeping targeted rodents with species designations
+#filter taxa list keeping targeted rodents with species designations (Note that T&E species do not have sp designations)
 tax_reduced<-tax%>%
-  filter(order == 'Rodentia',taxonProtocolCategory == 'target', taxonRank%in% c('species','subspecies'))#keeping target, rodents with species designation
+             filter(order == 'Rodentia',taxonProtocolCategory == 'target', taxonRank%in% c('species','subspecies'))#keeping target, rodents with species designation
 
 #read in NEON site environmental data
 site_env<-read.csv("C:/Users/bbaiser/Documents/GitHub/ITV/crosstaxa/data/NEON_Field_Site_Metadata_20210226_0_mod.csv")%>%
@@ -55,19 +55,7 @@ mammal_dataT <- itv_mammal_data%>%
                 group_by(tagID) %>% #group individuals by tag (i.e., recaptures) 
                 filter(collectDate==min(collectDate))%>% #for recaptures, take the earliest record
                 ungroup()%>%
-                mutate(tax_Site = paste(taxonID, siteID, sep = "_")) #make a unique species-by-site identifier
-
-#mammal_data2 <- itv_mammal_data%>%
-              # left_join(.,tax,by= "taxonID")%>% #join with neon taxonomy file
-               # mutate(year = year(collectDate), logweight=log(weight))%>% #make a year column and a log weight column
-                #drop_na(tagID, scientificName)%>% # get rid of empty trap (i.e. NA tags) and species designation na
-                #filter(lifeStage=="adult",order == 'Rodentia',taxonProtocolCategory == 'target')%>% #take only adults, rodents, target species, a
-                #filter(!taxonID%in% c('SOCISOHA','REMEREMO','PEMAPEBO','PELEPEMA','PEKEPEMA','PEGOPELE','PEFLPEFV','PEBOPETR','DIORDIMI','CHINCHPE','CHERCHPE','CHERCHIN'))%>%              
-                #filter( !grepl('sp\\.', scientificName))%>%#remove identification with sp. (e.g.,Peromyscus sp.)
-                #group_by(tagID) %>% #group individuals by tag (i.e., recaptures) 
-                #filter(collectDate==min(collectDate))%>% #for recaptures, take the earliest record
-                #ungroup()%>%
-                #mutate(tax_Site = paste(acceptedTaxonID, siteID, sep = "_"))#make taxa by site designation
+                mutate(tax_Site = paste(taxonID, siteID, sep = "_")) #make a unique species-by-site identifier called "tax_Site"
 
           
            
@@ -99,7 +87,7 @@ richness_estimators$AsyEst
 #}
 
 
-#just grab richness by site (or grab other diverstiy indicators?)
+#just grab richness by site (or grab other diversity indicators?)
 asymptotic_richness <- richness_estimators$AsyEst %>% 
                        filter(Diversity == 'Species richness') 
 
@@ -108,9 +96,7 @@ asymptotic_richness$siteID <- factor(asymptotic_richness$Site, levels=asymptotic
 
 #join species richness to data frame
 mammal_data3<-mammal_dataT%>%
-      left_join(., asymptotic_richness, by= "siteID")
-
-
+              left_join(., asymptotic_richness, by= "siteID")
 
 
 ####remove species that have fewer than 5 individuals in a given site (we can change this threshold, talk to group)
@@ -133,19 +119,19 @@ high_abun_mam<-mammal_data3[mammal_data3$tax_Site %in% abund_filt$tax_Site, ]%>%
 
 #prep data for OSTATs----
 o_stat_mam <- high_abun_mam %>%
-  #need to filter for 3 sites if you want the mean plots to work 
-  select(siteID, scientificName, logweight) %>%
-  filter(!is.na(logweight)) 
+              #need to filter for 3 sites if you want the mean plots to work 
+              select(siteID, scientificName, logweight) %>%
+              filter(!is.na(logweight)) 
 
 
 
 #select the env columns from the matrix to use with ostats output (need site level vars here...)
 site_rich <- high_abun_mam %>%#take the site richness and site id to join to env below
-  select(siteID,Observed)
+             select(siteID,Observed)
 
 #join site richness to other env. vars
 env<-site_env[site_env$siteID %in% o_stat_mam$siteID, ]%>%
-  left_join(.,unique(site_rich), by = "siteID")
+     left_join(.,unique(site_rich), by = "siteID")
      
 
 
@@ -158,14 +144,15 @@ o_stat_mam  %>%
 #look at data that is input for OSTATS functions
 head(o_stat_mam)
 
-
+?Ostats
 ####run Ostats function: copied from vignette####
 
 overlap_mam<- Ostats(traits = as.matrix(o_stat_mam[,'logweight']),
                  sp = factor(o_stat_mam$scientificName),
                  plots = factor(o_stat_mam$siteID),
-                 data_type = "linear",
-                 nperm=1)
+                 #data_type = "linear",
+                 density_args=list(bw=.05),
+                 nperm=100)
 
 head(overlap_mam$overlaps_norm)
 
@@ -180,7 +167,7 @@ mam_output<-ostats_output%>%
             drop_na(logweight)
 
 #need code here to save out OSTATS
-#write.csv(mam_output,"outputs/overlap_5_14.csv")
+#write.csv(mam_output,"overlap_7_2.csv")
 
 
 ####Analyze ostats output####
@@ -191,10 +178,17 @@ select(mam_output,siteID, logweight, Observed)%>%
         arrange(.,logweight)
 
 #run some models...
-mod<-lm(Observed~logweight+field_mean_annual_precipitation_mm, data=mam_output)
-summary(mod)
-plot(mod)
-car::vif(mod)
+mod1<-lm(Observed~logweight, data=mam_output)
+mod2<-lm(logweight~field_mean_annual_temperature_C, data=mam_output)
+mod3<-lm(Observed~field_mean_annual_temperature_C, data=mam_output)
+mod4<-lm(logweight~field_mean_annual_precipitation_mm, data=mam_output)
+mod5<-lm(Observed~field_mean_annual_precipitation_mm, data=mam_output)
+mod6<-lm(Observed~field_mean_annual_precipitation_mm+field_mean_annual_temperature_C, data=mam_output)
+mod6<-lm(Observed~field_mean_annual_precipitation_mm+field_mean_annual_temperature_C+logweight, data=mam_output)
+summary(mod6)
+summary(mod4)
+plot(mod2)
+car::vif(mod6)
 
 #long names for vars in model (cut/paste)
 field_mean_canopy_height_m++field_mean_annual_temperature_C+field_mean_annual_precipitation_mm
@@ -203,7 +197,7 @@ field_mean_canopy_height_m++field_mean_annual_temperature_C+field_mean_annual_pr
 ggplot(mam_output, aes(x=logweight, y=Observed)) + 
   geom_point()+
   geom_smooth(method=lm,na.rm=T)+
-  #geom_smooth(method= "loess")+
+  geom_smooth(method= "loess")+
   xlab("Overlap")+
   ylab ("Richness")
 
