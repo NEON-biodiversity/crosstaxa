@@ -101,11 +101,12 @@ high_abun_birds<-bird_dat[bird_dat$Spec_Stat %in% abund_filt$Spec_Stat, ]%>%
                  filter(Observed >1)
 
 write.csv(high_abun_birds,"ben_birds_forQ.csv")
+
 ####calculate species richness again with species/site combos with less that 5 removed####
 # generate vectors of abundances by species for each site
 birdtables2 <- high_abun_birds %>% 
-  group_by(STATION) %>% 
-  do(t = table(.$SPEC))
+               group_by(STATION) %>% 
+               do(t = table(.$SPEC))
 
 # Name the list of vectors
 mamx <- lapply(birdtables2$t, as.numeric)
