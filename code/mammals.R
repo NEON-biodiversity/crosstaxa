@@ -151,8 +151,8 @@ overlap_mam<- Ostats(traits = as.matrix(o_stat_mam[,'logweight']),
                  sp = factor(o_stat_mam$scientificName),
                  plots = factor(o_stat_mam$siteID),
                  #data_type = "linear",
-                 density_args=list(bw=.05),
-                 nperm=100)
+                 #density_args=list(bw=.05),
+                 nperm=1)
 
 head(overlap_mam$overlaps_norm)
 
@@ -176,7 +176,8 @@ mam_output<-ostats_output%>%
 #read.csv("outputs/ostats_outputv1.csv")#all data with only 1 species sites removed
 select(mam_output,siteID, logweight, Observed)%>%
         arrange(.,logweight)
-
+median(mam_output$logweight)
+median(mam_output$Observed)
 #run some models...
 mod1<-lm(Observed~logweight, data=mam_output)
 mod2<-lm(logweight~field_mean_annual_temperature_C, data=mam_output)
@@ -200,6 +201,21 @@ ggplot(mam_output, aes(x=logweight, y=Observed)) +
   geom_smooth(method= "loess")+
   xlab("Overlap")+
   ylab ("Richness")
+
+
+#ostats plots
+
+#inputs for "Ostats_plot" function
+sites2use<-c("GRSM", "SCBI", "JORN")
+#sites2use<-unique(dat_in$STATION)
+plots <- o_stat_mam$siteID
+sp <- o_stat_mam$scientificName
+traits <- o_stat_mam$logweight
+
+#plot distributions and means
+Ostats_plot(plots = plots, sp = sp, traits = traits,
+            overlap_dat = overlap_mam,
+            use_plots = sites2use, means = TRUE)
 
 
 
