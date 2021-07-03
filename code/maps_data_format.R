@@ -136,12 +136,11 @@ asymptotic_richness2$STATION <- factor(asymptotic_richness2$Site, levels=asympto
 #subset number of stations to run in reasonable time... 
 sub_station<-c("VINS","PATT","FTGI")
 
-
-  dat_in <- high_abun_birds %>%
-  #filter(STATION %in% sub_station)%>% 
-  select(STATION, SPEC, WEIGHT) %>%
-  filter(!is.na(WEIGHT)) %>%
-  mutate(log_WEIGHT = log10(WEIGHT))
+dat_in <- high_abun_birds %>%
+          filter(STATION %in% sub_station)%>% 
+          select(STATION, SPEC, WEIGHT) %>%
+          filter(!is.na(WEIGHT)) %>%
+          mutate(log_WEIGHT = log10(WEIGHT))
 
 
 
@@ -160,9 +159,8 @@ Ostats_example3 <- Ostats(traits = as.matrix(dat_in[,'log_WEIGHT']),
                          sp = factor(dat_in$SPEC),
                          plots = factor(dat_in$STATION),
                          output = "mean",
-                         data_type = "linear",
                          nperm = 1)
-
+?Ostats
 Ostats_example3
 
 
@@ -189,10 +187,10 @@ bird_output<-read.csv("bird_overlap_6_15.csv", row=1)#all data with only 1 speci
 
 #join species richness 2 to data frame
 test<-bird_output%>%
-  left_join(., asymptotic_richness2, by= "STATION")
+      left_join(., asymptotic_richness2, by= "STATION")
 
 range<-select(test,STATION, log_WEIGHT, Observed.y)%>%
-  arrange(.,Observed.y)
+       arrange(.,Observed.y)
 
 #run some models...
 mod<-lm(Observed.y~log_WEIGHT, data=test)
@@ -226,14 +224,14 @@ ggplot(test, aes(x=log_WEIGHT, y=log(Observed.x)) )+
 #inputs for "Ostats_plot" function
 
 sites2use<-c("VINS", "PATT", "FTGI") #pick specific sites or
-sites2use<-unique(dat_in$STATION)# if you filter above then use this
+#sites2use<-unique(dat_in$STATION)# if you filter above then use this
 plots <- dat_in$STATION
 sp <- dat_in$SPEC
 traits <- dat_in$log_WEIGHT
 
 #plot distributions and means
 Ostats_plot(plots = plots, sp = sp, traits = traits,
-            overlap_dat = Ostats_example,
+            overlap_dat = Ostats_example3,
             use_plots = sites2use, means = TRUE)
 
 
