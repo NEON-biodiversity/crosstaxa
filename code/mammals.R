@@ -11,6 +11,7 @@ library(plyr)
 library(Ostats)
 library(ggplot2)
 library(iNEXT)
+library(piecewiseSEM)
 
 
 #note that I am setting a wd here in the shared files from the G-drive, not using the path in the Rproject
@@ -19,7 +20,7 @@ setwd("G:/Shared drives/MacrosystemsBiodiversity/data/organism/L0/neon_downloads
 #read in neon mammal data from g-drive
 load("DP1.10072.001.Rdata")
 
-#read in the NEON taxonomy data for all species from g-drive and filter relevant columns
+#read in the NEON taxonomy data for all species from g-drive and select relevant columns
 tax<-read.csv("../neon_taxa/OS_TAXON_SMALL_MAMMAL-20200129T161511.csv")%>%
      select(taxonID, acceptedTaxonID,vernacularName,taxonProtocolCategory,taxonRank,order,family,subfamily,tribe,genus)
 
@@ -38,7 +39,7 @@ site_env<-read.csv("C:/Users/bbaiser/Documents/GitHub/ITV/crosstaxa/data/NEON_Fi
 #make tibbles
 mam_dat<-lapply(neondata, as_tibble)
 head(mam_dat)
-
+getwd()
 #variable descriptions from NEON, i.e. metadata
 #vars<-mam_dat$variables_10072
 
@@ -95,7 +96,7 @@ asymptotic_richness <- richness_estimators$AsyEst %>%
 asymptotic_richness$siteID <- factor(asymptotic_richness$Site, levels=asymptotic_richness$Site[order(asymptotic_richness$Observed)])#make siteID column to left join
 
 #join species richness to data frame
-mammal_data3<-mammal_dataT%>%
+mammal_data<-mammal_dataT%>%
               left_join(., asymptotic_richness, by= "siteID")
 
 
@@ -103,12 +104,12 @@ mammal_data3<-mammal_dataT%>%
 #also note, we can recalculate site richness after removing these species...
 
 #make list of species/site combos that have <5 individuals  
-abund_filt<-mammal_data3%>%
+abund_filt<-mammal_data%>%
             dplyr::count(tax_Site) %>%
             filter(n>4)
 
 #remove those species/site combos and filter sites with <1 species 
-high_abun_mam<-mammal_data3[mammal_data3$tax_Site %in% abund_filt$tax_Site, ]%>%     
+high_abun_mam<-mammal_data[mammal_data$tax_Site %in% abund_filt$tax_Site, ]%>%     
                filter(Observed >1)
 
 
@@ -124,7 +125,7 @@ high_abun_mam<-mammal_data3[mammal_data3$tax_Site %in% abund_filt$tax_Site, ]%>%
 sub_Site<-c("GUAN", "DEJU")#sites with one species to remove
 
 o_stat_mam <- high_abun_mam %>%
-              filter(!siteID %in% sub_Site)%>% #remove sites with one species because it messes up plotting
+              #filter(!siteID %in% sub_Site)%>% #remove sites with one species because it messes up plotting
               select(siteID, scientificName, logweight) %>%
               filter(!is.na(logweight)) 
 
@@ -149,19 +150,18 @@ o_stat_mam  %>%
 #look at data that is input for OSTATS functions
 head(o_stat_mam)
 
-?Ostats
+
 ####run Ostats function: copied from vignette####
 
 overlap_mam<- Ostats(traits = as.matrix(o_stat_mam[,'logweight']),
                  sp = factor(o_stat_mam$scientificName),
                  plots = factor(o_stat_mam$siteID),
-                 #data_type = "linear",
                  #density_args=list(bw=.05),
                  nperm=1)
 
 
 
-head(overlap_mam$overlaps_norm)
+
 
 #make ostats a data frame
 ostats_output<-as.data.frame(overlap_mam)
@@ -170,14 +170,14 @@ colnames(ostats_output)
 #give Ostats output a site id column from the current rownames and join to env data
 mam_output<-ostats_output%>%
             mutate(siteID= row.names(ostats_output))%>%#give Ostats output a site id column from the current rownames
-            left_join(.,env, by = "siteID")%>% #join site env data to ostats_output
-            drop_na()
+            left_join(.,env, by = "siteID")#%>% #join site env data to ostats_output
+           # drop_na()
 
 
 
 
 #need code here to save out OSTATS
-#write.csv(mam_output,"overlap_7_2.csv")
+#write.csv(mam_output,"../../L1/cross_taxa_ITV/mammal/overlap_7_3.csv")
 
 
 ####Analyze ostats output####
@@ -187,33 +187,39 @@ mam_output<-ostats_output%>%
 select(mam_output,siteID, logweight, Observed)%>%
         arrange(.,logweight)
 
+select(mam_output,siteID, field_mean_annual_precipitation_mm,field_mean_annual_temperature_C,logweight, Observed)%>%
+  arrange(.,Observed)
 
 
-
-#run some models...
+#run some exploratory models...
 mod1<-lm(Observed~logweight, data=mam_output)
 mod2<-lm(logweight~field_mean_annual_temperature_C, data=mam_output)
 mod3<-lm(Observed~field_mean_annual_temperature_C, data=mam_output)
-mod4<-lm(logweight~field_mean_annual_precipitation_mm, data=mam_output)
+mod4<-lm(logweight~field_mean_annual_precipitation_mm*field_mean_annual_temperature_C, data=mam_output)
 mod5<-lm(Observed~field_mean_annual_precipitation_mm, data=mam_output)
-mod6<-lm(Observed~field_mean_annual_precipitation_mm+field_mean_annual_temperature_C, data=mam_output)
+mod6<-lm(Observed~field_mean_annual_precipitation_mm*field_mean_annual_temperature_C+logweight, data=mam_output)
 mod6<-lm(Observed~field_mean_annual_precipitation_mm+field_mean_annual_temperature_C+logweight, data=mam_output)
+summary(mod1)
 summary(mod6)
-summary(mod4)
-plot(mod2)
+plot(mod6)
 car::vif(mod6)
+cor(mam_output$logweight,mam_output$field_mean_annual_temperature_C)
 
 #long names for vars in model (cut/paste)
 field_mean_canopy_height_m++field_mean_annual_temperature_C+field_mean_annual_precipitation_mm
 
+
 #Plot univariate relationships
 ggplot(mam_output, aes(x=logweight, y=Observed)) + 
   geom_point()+
-  geom_smooth(method=lm,na.rm=T)+
-  geom_smooth(method= "loess")+
+  geom_smooth(method=lm)+
+  scale_y_discrete(breaks=1:22)+
+  #geom_smooth(method= "loess")+
   xlab("Overlap")+
   ylab ("Richness")
 
+str()
+plot(Overlap, Richness)
 
 #ostats plots
 
@@ -231,5 +237,30 @@ Ostats_plot(plots = plots, sp = sp, traits = traits,
 
 
 
+####piecewise SEM
+#models
+#predicting speciers richness (Observed)
+rich<-lm(Observed~logweight+field_mean_annual_precipitation_mm*field_mean_annual_temperature_C, data=mam_output)
+plot(rich)
+summary(rich)
+car::vif(rich)
+#field_mean_annual_precipitation_mm+field_mean_annual_temperature_C+
+niche_overlap<-lm(logweight~field_mean_annual_precipitation_mm*field_mean_annual_temperature_C, data=mam_output)
+plot(niche_overlap)
+car::vif(rich)
 
+####Path model using psem
+model1<-psem(rich,niche_overlap)
+summary(model1, .progressBar = F)
+
+#save out coefficents table
+mod1_coefs<-coefs(model1)
+write.csv(mod1_coefs, file = "results/mpd_model.csv", quote = FALSE, row.names = F)
+
+plot(model1)
+
+AIC(model1)
+plot(model1, node_attrs = list(
+  shape = "rectangle", color = "black",
+  fillcolor = "orange", x = 3, y=1:12))
 
