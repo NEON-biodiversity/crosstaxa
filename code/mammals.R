@@ -2,7 +2,7 @@
 rm(list=ls())
 
 #packages
-devtools::install_github('NEON-biodiversity/Ostats')
+#devtools::install_github('NEON-biodiversity/Ostats')
 library(tidyverse)
 library(spData)
 library(sf)
@@ -118,8 +118,13 @@ high_abun_mam<-mammal_data3[mammal_data3$tax_Site %in% abund_filt$tax_Site, ]%>%
 
 
 #prep data for OSTATs----
+
+#subset number of stations to run in reasonable time... 
+#sub_Site<-c("GRSM", "SCBI", "JORN")
+sub_Site<-c("GUAN", "DEJU")#sites with one species to remove
+
 o_stat_mam <- high_abun_mam %>%
-              #need to filter for 3 sites if you want the mean plots to work 
+              filter(!siteID %in% sub_Site)%>% #remove sites with one species because it messes up plotting
               select(siteID, scientificName, logweight) %>%
               filter(!is.na(logweight)) 
 
@@ -154,6 +159,8 @@ overlap_mam<- Ostats(traits = as.matrix(o_stat_mam[,'logweight']),
                  #density_args=list(bw=.05),
                  nperm=1)
 
+
+
 head(overlap_mam$overlaps_norm)
 
 #make ostats a data frame
@@ -164,7 +171,10 @@ colnames(ostats_output)
 mam_output<-ostats_output%>%
             mutate(siteID= row.names(ostats_output))%>%#give Ostats output a site id column from the current rownames
             left_join(.,env, by = "siteID")%>% #join site env data to ostats_output
-            drop_na(logweight)
+            drop_na()
+
+
+
 
 #need code here to save out OSTATS
 #write.csv(mam_output,"overlap_7_2.csv")
@@ -176,8 +186,10 @@ mam_output<-ostats_output%>%
 #read.csv("outputs/ostats_outputv1.csv")#all data with only 1 species sites removed
 select(mam_output,siteID, logweight, Observed)%>%
         arrange(.,logweight)
-median(mam_output$logweight)
-median(mam_output$Observed)
+
+
+
+
 #run some models...
 mod1<-lm(Observed~logweight, data=mam_output)
 mod2<-lm(logweight~field_mean_annual_temperature_C, data=mam_output)
@@ -206,7 +218,7 @@ ggplot(mam_output, aes(x=logweight, y=Observed)) +
 #ostats plots
 
 #inputs for "Ostats_plot" function
-sites2use<-c("GRSM", "SCBI", "JORN")
+sites2use<-c("GRSM", "SCBI", "JORN")#even if you set these sites, if there is an NA from other sites for overlap you get an error
 #sites2use<-unique(dat_in$STATION)
 plots <- o_stat_mam$siteID
 sp <- o_stat_mam$scientificName
