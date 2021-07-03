@@ -39,7 +39,7 @@ site_env<-read.csv("C:/Users/bbaiser/Documents/GitHub/ITV/crosstaxa/data/NEON_Fi
 #make tibbles
 mam_dat<-lapply(neondata, as_tibble)
 head(mam_dat)
-getwd()
+
 #variable descriptions from NEON, i.e. metadata
 #vars<-mam_dat$variables_10072
 
@@ -125,7 +125,7 @@ high_abun_mam<-mammal_data[mammal_data$tax_Site %in% abund_filt$tax_Site, ]%>%
 sub_Site<-c("GUAN", "DEJU")#sites with one species to remove
 
 o_stat_mam <- high_abun_mam %>%
-              #filter(!siteID %in% sub_Site)%>% #remove sites with one species because it messes up plotting
+              filter(!siteID %in% sub_Site)%>% #remove sites with one species because it messes up plotting
               select(siteID, scientificName, logweight) %>%
               filter(!is.na(logweight)) 
 
@@ -213,7 +213,6 @@ field_mean_canopy_height_m++field_mean_annual_temperature_C+field_mean_annual_pr
 ggplot(mam_output, aes(x=logweight, y=Observed)) + 
   geom_point()+
   geom_smooth(method=lm)+
-  scale_y_discrete(breaks=1:22)+
   #geom_smooth(method= "loess")+
   xlab("Overlap")+
   ylab ("Richness")
