@@ -129,7 +129,7 @@ o_stat_mam <- high_abun_mam %>%
               select(siteID, scientificName, logweight) %>%
               filter(!is.na(logweight)) 
 
-
+#write.csv(o_stat_mam, "../../L1/cross_taxa_ITV/mammal/o_stat_mam.csv")
 
 #select the env columns from the matrix to use with ostats output (need site level vars here...)
 site_rich <- high_abun_mam %>%#take the site richness and site id to join to env below
@@ -161,7 +161,7 @@ overlap_mam<- Ostats(traits = as.matrix(o_stat_mam[,'logweight']),
 
 
 
-
+#write.csv(overlap_mam,"../../L1/cross_taxa_ITV/mammal/overlap_mam.csv")
 
 #make ostats a data frame
 ostats_output<-as.data.frame(overlap_mam)
