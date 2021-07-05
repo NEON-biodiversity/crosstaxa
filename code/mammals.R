@@ -12,6 +12,7 @@ library(Ostats)
 library(ggplot2)
 library(iNEXT)
 library(piecewiseSEM)
+library(effects)
 
 
 #note that I am setting a wd here in the shared files from the G-drive, not using the path in the Rproject
@@ -182,8 +183,9 @@ mam_output<-ostats_output%>%
 
 ####Analyze ostats output####
 
-#output from above if you don't call it in
-#read.csv("outputs/ostats_outputv1.csv")#all data with only 1 species sites removed
+#ostats output from above if you don't call it in
+
+#view data in different orders
 select(mam_output,siteID, logweight, Observed)%>%
         arrange(.,logweight)
 
@@ -199,14 +201,14 @@ mod4<-lm(logweight~field_mean_annual_precipitation_mm*field_mean_annual_temperat
 mod5<-lm(Observed~field_mean_annual_precipitation_mm, data=mam_output)
 mod6<-lm(Observed~field_mean_annual_precipitation_mm*field_mean_annual_temperature_C+logweight, data=mam_output)
 mod6<-lm(Observed~field_mean_annual_precipitation_mm+field_mean_annual_temperature_C+logweight, data=mam_output)
+
+#look at models
 summary(mod1)
 summary(mod6)
 plot(mod6)
 car::vif(mod6)
 cor(mam_output$logweight,mam_output$field_mean_annual_temperature_C)
 
-#long names for vars in model (cut/paste)
-field_mean_canopy_height_m++field_mean_annual_temperature_C+field_mean_annual_precipitation_mm
 
 
 #Plot univariate relationships
@@ -217,10 +219,50 @@ ggplot(mam_output, aes(x=logweight, y=Observed)) +
   xlab("Overlap")+
   ylab ("Richness")
 
-str()
-plot(Overlap, Richness)
+####interaction plots
+mam_output = rename(mam_output, prep_mm = field_mean_annual_precipitation_mm,
+                    temp = field_mean_annual_temperature_C)
 
-#ostats plots
+#predicting speciers richness (Observed)
+rich<-lm(Observed~logweight+prep_mm*temp, data=mam_output)
+
+rich_eff = effect(term = "prep_mm:temp", mod = rich)
+plot(rich_eff, multiline = F)
+plot(rich_eff, multiline = T)
+
+#richness interaction plot
+rich_eff_df = as.data.frame(rich_eff)
+p_rich = mutate(rich_eff_df, Temperature = as.factor(temp)) %>% 
+  ggplot(aes(x = prep_mm, y = fit)) +
+  # not sure how useful the confidence intervals are...
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = Temperature), alpha = 0.1) +
+  geom_line(aes(color = Temperature), size = 1.1) +
+  labs(x = "Precipitation (mm)", y = "Species Richness") +
+  colorspace::scale_color_discrete_sequential(palette = "Viridis") +
+  cowplot::theme_cowplot() +
+  theme(legend.position = c(0.3, 0.8))
+
+#ggsave("rich_interaction.pdf", plot = p_rich, width = 7, height = 5)
+
+#niche overlap interaction plot
+niche_overlap<-lm(logweight~prep_mm*temp, data=mam_output)
+niche_eff = effect(term = "prep_mm:temp", mod = niche_overlap)
+plot(niche_eff, multiline = F)
+plot(niche_eff, multiline = T)
+
+niche_eff_df = as.data.frame(niche_eff)
+p_niche = mutate(niche_eff_df, Temperature = as.factor(temp)) %>% 
+  ggplot(aes(x = prep_mm, y = fit)) +
+  # not sure how useful the confidence intervals are...
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = Temperature), alpha = 0.1) +
+  geom_line(aes(color = Temperature), size = 1.1) +
+  labs(x = "Precipitation (mm)", y = "Overlap") +
+  colorspace::scale_color_discrete_sequential(palette = "Viridis") +
+  cowplot::theme_cowplot() +
+  theme(legend.position = c(0.1, 0.8))
+#ggsave("niche_interaction.pdf", plot = p_niche, width = 7, height = 5)
+
+#ostats distribution overlap plots (Q working to reorder)
 
 #inputs for "Ostats_plot" function
 sites2use<-c("GRSM", "SCBI", "JORN")#even if you set these sites, if there is an NA from other sites for overlap you get an error
@@ -236,25 +278,29 @@ Ostats_plot(plots = plots, sp = sp, traits = traits,
 
 
 
-####piecewise SEM
+####piecewise SEM###
 #models
-#predicting speciers richness (Observed)
+
+#predicting species richness (Observed)
 rich<-lm(Observed~logweight+field_mean_annual_precipitation_mm*field_mean_annual_temperature_C, data=mam_output)
 plot(rich)
 summary(rich)
 car::vif(rich)
-#field_mean_annual_precipitation_mm+field_mean_annual_temperature_C+
+
+#predicting niche overlap
 niche_overlap<-lm(logweight~field_mean_annual_precipitation_mm*field_mean_annual_temperature_C, data=mam_output)
 plot(niche_overlap)
-car::vif(rich)
+car::vif(niche_overlap)
 
 ####Path model using psem
 model1<-psem(rich,niche_overlap)
 summary(model1, .progressBar = F)
+AIC(model1)
 
-#save out coefficents table
+#save out coefficients table
 mod1_coefs<-coefs(model1)
-write.csv(mod1_coefs, file = "results/mpd_model.csv", quote = FALSE, row.names = F)
+
+#write.csv(mod1_coefs, file = "results/mpd_model.csv", quote = FALSE, row.names = F)
 
 plot(model1)
 
