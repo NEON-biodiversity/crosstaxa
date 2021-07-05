@@ -274,7 +274,7 @@ p_niche = mutate(niche_eff_df, Temperature = as.factor(temp)) %>%
 ggsave("../../L2/cross_taxa/figs/mammal/niche_interaction.pdf", plot = p_niche, width = 7, height = 5)
 
 
-#ostats distribution overlap plots (Q working to reorder)
+####ostats distribution overlap plots (Q working to reorder)####
 
 #inputs for "Ostats_plot" function
 sites2use<-c("GRSM", "SCBI", "JORN")#even if you set these sites, if there is an NA from other sites for overlap you get an error
@@ -290,7 +290,7 @@ Ostats_plot(plots = plots, sp = sp, traits = traits,
 
 
 
-####piecewise SEM###
+####piecewise SEM####
 #models
 
 #predicting species richness (Observed)
