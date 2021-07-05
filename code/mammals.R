@@ -211,7 +211,7 @@ cor(mam_output$logweight,mam_output$field_mean_annual_temperature_C)
 
 
 
-#Plot univariate relationships
+#Plot univariate relationship between richness and overlap
 ggplot(mam_output, aes(x=logweight, y=Observed)) + 
   geom_point()+
   geom_smooth(method=lm)+
@@ -219,33 +219,44 @@ ggplot(mam_output, aes(x=logweight, y=Observed)) +
   xlab("Overlap")+
   ylab ("Richness")
 
-####interaction plots
+####interaction plots####
 mam_output = rename(mam_output, prep_mm = field_mean_annual_precipitation_mm,
                     temp = field_mean_annual_temperature_C)
-
+colnames(mam_output)
 #predicting speciers richness (Observed)
 rich<-lm(Observed~logweight+prep_mm*temp, data=mam_output)
+plot(rich)
+summary(rich)
+car::vif(rich)
+
+library(effects)
+if(require("colorspace")) install.packages("colorspace")
+if(require("cowplot")) install.packages("cowplot")
 
 rich_eff = effect(term = "prep_mm:temp", mod = rich)
 plot(rich_eff, multiline = F)
 plot(rich_eff, multiline = T)
 
-#richness interaction plot
 rich_eff_df = as.data.frame(rich_eff)
 p_rich = mutate(rich_eff_df, Temperature = as.factor(temp)) %>% 
   ggplot(aes(x = prep_mm, y = fit)) +
   # not sure how useful the confidence intervals are...
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = Temperature), alpha = 0.1) +
+  #geom_ribbon(aes(ymin = lower, ymax = upper, fill = Temperature), alpha = 0.1) +
   geom_line(aes(color = Temperature), size = 1.1) +
   labs(x = "Precipitation (mm)", y = "Species Richness") +
   colorspace::scale_color_discrete_sequential(palette = "Viridis") +
   cowplot::theme_cowplot() +
   theme(legend.position = c(0.3, 0.8))
+ggsave("../../L2/cross_taxa/figs/mammal/mammalrich_interaction.pdf", plot = p_rich, width = 7, height = 5)
 
-#ggsave("rich_interaction.pdf", plot = p_rich, width = 7, height = 5)
+G:\Shared drives\MacrosystemsBiodiversity\data\organism\L2\cross_taxa\figs\mammal
 
-#niche overlap interaction plot
+#predicting bodysize overlap (logweight)
 niche_overlap<-lm(logweight~prep_mm*temp, data=mam_output)
+summary(niche_overlap)
+plot(niche_overlap)
+car::vif(niche_overlap)
+
 niche_eff = effect(term = "prep_mm:temp", mod = niche_overlap)
 plot(niche_eff, multiline = F)
 plot(niche_eff, multiline = T)
@@ -254,13 +265,14 @@ niche_eff_df = as.data.frame(niche_eff)
 p_niche = mutate(niche_eff_df, Temperature = as.factor(temp)) %>% 
   ggplot(aes(x = prep_mm, y = fit)) +
   # not sure how useful the confidence intervals are...
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = Temperature), alpha = 0.1) +
+  #geom_ribbon(aes(ymin = lower, ymax = upper, fill = Temperature), alpha = 0.1) +
   geom_line(aes(color = Temperature), size = 1.1) +
   labs(x = "Precipitation (mm)", y = "Overlap") +
   colorspace::scale_color_discrete_sequential(palette = "Viridis") +
   cowplot::theme_cowplot() +
   theme(legend.position = c(0.1, 0.8))
-#ggsave("niche_interaction.pdf", plot = p_niche, width = 7, height = 5)
+ggsave("../../L2/cross_taxa/figs/mammal/niche_interaction.pdf", plot = p_niche, width = 7, height = 5)
+
 
 #ostats distribution overlap plots (Q working to reorder)
 
