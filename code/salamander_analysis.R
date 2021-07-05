@@ -9,6 +9,9 @@ library(plyr)
 library(Ostats)
 library(ggplot2)
 library(iNEXT)
+library(piecewiseSEM)
+library(effects)
+library(tidyverse)
 
 
 
@@ -75,7 +78,7 @@ length(unique(svl_site$lat_long))
 #merge site and elevation to make a unique identifier for each site because some sites have the same site # but different elevations
 svl_site_merged <- svl_site%>% 
                    mutate(SITE2 = paste(SITE, Elevation, sep = "_"))%>% 
-                   mutate(tax_Site = paste(ID, SITE2, sep = "_"))
+                   mutate(tax_Site = paste(ID, SITE2, sep = "_"))#unique identifier for species/site combos
 
 
 ####calculating richness as a covariate
@@ -121,6 +124,7 @@ head(svl_site_filt)
 hi_abund<-svl_site_filt %>%
           dplyr::count(tax_Site) %>%
           filter(n >4)
+
 #filter(n >4) #will allow us to keep sites where some species have 5 or more individual
 # however, we would have to filter out this with only 1 ( filter(count >1))species left, discuss with group
 
@@ -146,16 +150,16 @@ length(unique(svl_site_input$SITE2))
 # Use the mutate function to add a new column named "log_SVL" to log-transform the measurements.
 
 o_data <- svl_site_input %>%
-  #filter(SITE %in% c('14','83', '3045'))%>% #need to filter for 3 sites if you want the mean plots to work 
-  select(SITE2, ID, SVL) %>%
-  filter(!is.na(SVL)) %>%
-  mutate(log_SVL = log10(SVL))
+         #filter(SITE %in% c('14','83', '3045'))%>% #need to filter for 3 sites if you want the mean plots to work 
+         dplyr::select(SITE2, ID, SVL) %>%
+         filter(!is.na(SVL)) %>%
+         mutate(log_SVL = log10(SVL))
 
 
 
 #select the env columns from the matrix to use with ostats output
 o_env <- svl_site_input %>%
-  select(-SITE, -USNM ,-ID, -SVL,-tax_Site)
+         dplyr::select(-SITE, -USNM ,-ID, -SVL,-tax_Site)
 
 # Group the svl data by siteID and taxonID and look at the summary 
 o_data %>%
@@ -171,9 +175,8 @@ head(o_data)
 overlap_sal<- Ostats(traits = as.matrix(o_data[,'log_SVL']),
                          sp = factor(o_data$ID),
                          plots = factor(o_data$SITE2),
-                         data_type = "linear",
                          nperm=1)
-?Ostats
+
 #make ostats a data frame
 
 ostats_output<-as.data.frame(overlap_sal)
@@ -185,6 +188,36 @@ sal_output<-ostats_output%>%
               left_join(.,unique(o_env), by = "SITE2") #join site env data to ostats_output
 
 
+####bioclim for these sites
+
+library(raster)
+library(sp)
+
+r <- getData("worldclim",var="bio",res=10)
+
+r <- r[[c(1,12)]]
+names(r) <- c("Temp","Prec")
+
+
+coords <- sal_output %>%
+         dplyr::select(.,Latitude, Longitude)%>%
+         mutate_if(is.character, as.numeric)
+        
+
+values <- extract(r,coords[,2:1])
+
+clim <- cbind.data.frame(coordinates(points),values,sal_output$SITE2)
+colnames(clim)[5]<-"SITE2"
+
+
+
+#join new climte data with sal_out
+sal_results<-clim%>%
+            left_join(.,sal_output, by = "SITE2")%>%
+            mutate(Temp = Temp / 10)
+
+
+
 #need code here to save out OSTATS
 #write.csv(sal_output,"outputs/overlap_5_14.csv")
 
@@ -192,8 +225,9 @@ sal_output<-ostats_output%>%
 
 ####Analyze ostats output####
 
-svl_overlap<-sal_output #output from above if you don't call it in
-svl_overlap<-read.csv("outputs/ostats_outputv1.csv")#all data with only 1 species sites removed
+
+svl_overlap<-sal_results #output from above if you don't call it in
+#svl_overlap<-read.csv("outputs/ostats_outputv1.csv")#all data with only 1 species sites removed
 
 
 #remove na values for overlap norms. these are sites with only 1 species but not 
@@ -201,17 +235,35 @@ svl_overlap<-read.csv("outputs/ostats_outputv1.csv")#all data with only 1 specie
 overlap2<-svl_overlap%>%
           drop_na(overlaps_norm)
 
-str(overlap2)
+
+
+
+#rename variables so it is easier...
+overlap2 = dplyr::rename(overlap2, Overlap = overlaps_norm,
+                    Richness = Observed, Precipitation=Prec, Temperature=Temp)
+
+
+dplyr::select(overlap2,SITE2, Overlap, Richness)%>%
+  arrange(.,Richness)
 
 #run some models...
-mod<-lm(overlaps_norm~as.numeric(Latitude)+Observed, data=overlap2)
+#run some exploratory models...
+mod1<-lm(Richness~Overlap, data=overlap2)
+mod2<-lm(Richness~Temperature, data=overlap2)
+mod3<-lm(Richness~Precipitation, data=overlap2)
+mod4<-lm(Richness~Temperature*Precipitation, data=overlap2)
+mod5<-lm(Overlap~Temperature, data=overlap2)
+mod6<-lm(Overlap~Precipitation, data=overlap2)
+mod7<-lm(Overlap~Temperature+Precipitation, data=overlap2)
 
-summary(mod)
-plot(mod)
-plot( overlap2$Latitude,overlap2$overlaps_norm)
+#look at models
+summary(mod7)
+plot(mod1)
+car::vif(mod6)
+cor(mam_output$logweight,mam_output$field_mean_annual_temperature_C)
 
 #Plot univariate relationships
-ggplot(overlap2, aes(x=overlaps_norm, y=Observed)) + 
+ggplot(overlap2, aes(x=Overlap, y=Richness)) + 
 geom_point()+
 geom_smooth(method=lm)+
 xlab("Overlap")+
@@ -220,13 +272,13 @@ ylab ("Richness")
 
 ####Work on plotting
 #get inputs for the plot function
-sites2use<-c(unique(o_data$SITE2))
-#sites2use<-c("4450_2090" ,"4476_2900" ,"4477_2600")
+#sites2use<-c(unique(o_data$SITE2))
+sites2use<-c("4068_3900" ,"5719_4030" ,"5920_3740")
 plots <- o_data$SITE2
 sp <- o_data$ID
 traits <- o_data$log_SVL
 
 Ostats_plot(plots = plots, sp = sp, traits = traits,
-            overlap_dat = overlap,
+            overlap_dat = overlap_sal,
             use_plots = sites2use, means = TRUE)
 
