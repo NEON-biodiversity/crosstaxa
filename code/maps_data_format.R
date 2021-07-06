@@ -10,6 +10,8 @@ library(plyr)
 library(Ostats)
 library(ggplot2)
 library(iNEXT)
+library(piecewiseSEM)
+library(effects)
 
 #loading R data file for maps data
 
@@ -27,8 +29,41 @@ head(dat)
 
 #this is the individual level data
 dat$band#this is the individual level data
-dat$stations#this is the station data
 
+
+#cHANGE SPECIES CODE THAT NOW DIFFER
+name_fix<-dat$band %>% 
+  mutate(SPEC = str_replace(SPEC, "COGD", "CGDO"))%>%
+  mutate(SPEC = str_replace(SPEC, "ORBI", "NRBI"))%>%
+  mutate(SPEC = str_replace(SPEC, "GRAJ", "CAJA"))%>%
+  mutate(SPEC = str_replace(SPEC, "WESJ", "CASJ"))
+  
+
+#add species taxonomic information
+sci_name<-read.csv("bird_taxa_list.csv")
+spec_miss<-("COGD" "GRAJ" "ORBI" "WESJ")#species missing from taxa list
+
+#select names from taxa list that are in data
+testb<-sci_name%>%
+       filter(SPEC %in%name_fix$SPEC)
+
+#compare species lists: all good
+as.data.frame(cbind(testb$SPEC[order(testb$SPEC)],unique(name_fix$SPEC)[order(unique(name_fix$SPEC))]))
+
+#join taxa names to data
+correct_names<-name_fix%>%
+               left_join(., testb, by = "SPEC")%>%
+               dplyr::select(-SP,-CONF,-SPEC6,-CONF6)
+
+#elton trait data, going to gelan family and order info...
+family_order<-read.csv("Elton_Bird.csv")%>%
+              dplyr::rename(SCINAME = Scientific)
+
+test_fam<-family_order%>%
+          filter(SCINAME %in%correct_names$SCINAME)
+
+#station data
+dat$stations
 
 
 #############################################################################
