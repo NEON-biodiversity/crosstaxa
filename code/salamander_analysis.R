@@ -3,6 +3,7 @@ rm(list=ls())
 
 #Libraries
 #devtools::install_github('NEON-biodiversity/Ostats')
+library(tidyverse)
 library(dplyr)
 library(tidyr)
 library(plyr)
@@ -11,16 +12,18 @@ library(ggplot2)
 library(iNEXT)
 library(piecewiseSEM)
 library(effects)
-library(tidyverse)
+
 
 
 
 
 #salamander data----
 #note that I am setting a wd here in the shared files from the G-drive, not using the path in the Rproject
+
 setwd("G:/Shared drives/MacrosystemsBiodiversity/data/organism/L0/non_neon_observations/Adams_salamander")
 
 #individual svl measurements
+
 sal_SVL<-read.csv("MasterSVLData.csv")
 head(sal_SVL)
 
@@ -135,21 +138,46 @@ svl_site_input<-svl_site_filt[svl_site_filt$tax_Site %in% hi_abund$tax_Site, ]
 length(unique(svl_site_input$SITE2))
 
 
-####don't think i need this anymore (check)
-#try to get an env data set where there is one row per site. this will be used for post-ostats analysis.
-#site_vars<-svl_site_filt%>%
-          #select (-c(USNM, SVL,ID))%>%#####problem here is that there are other vars that differ e.g.count. do count after? and drop others
-          #distinct(.)
-  
-#length(unique(site_vars$SITE2)) #####problem here is 
-#length(site_env$SITE)  
+
+####recalculating richness as a covariate after removing species/site combos with less than 5 individuals (i.e., species richness of actual species we have itv for)
+
+salTables2 <- svl_site_input  %>% 
+  group_by(SITE2) %>% 
+  do(t = table(.$ID))
+
+# Name the list of vectors
+mamx <- lapply(salTables2$t, as.numeric)
+names(mamx) <- salTables2$SITE2
+
+# Calculate asymptotic richness estimator
+set.seed(46545)
+richness_estimators <- iNEXT(x=mamx, q=0, datatype='abundance', size = c(5,10,50,100,500,1000,2000,3000,4000))
+
+#Estimtes for each site (species rich, shannon, simpson)
+richness_estimators$AsyEst
+
+
+#just grab richness by site (or grab other diversity indicators?)
+asymptotic_richness2 <- richness_estimators$AsyEst %>% 
+                       filter(Diversity == 'Species richness') 
+
+#check out new distribution
+hist(asymptotic_richness2$Observed)
+
+#name site id "SITE2" to match other data frame
+asymptotic_richness2$SITE2 <- factor(asymptotic_richness2$Site, levels=asymptotic_richness2$Site[order(asymptotic_richness2$Observed)])#make siteID column to left join
+
+#join species richness to data frame
+svl_wRich2<-svl_site_input%>%
+            left_join(., asymptotic_richness2, by= "SITE2")%>%
+            filter(Observed.y>1)
 
 #prep data for OSTATs----
 
 #  filter for only 3 sites to test then select the relevant columns required by the function site, id, svl.
 # Use the mutate function to add a new column named "log_SVL" to log-transform the measurements.
 
-o_data <- svl_site_input %>%
+o_data <- svl_wRich2 %>%
          #filter(SITE %in% c('14','83', '3045'))%>% #need to filter for 3 sites if you want the mean plots to work 
          dplyr::select(SITE2, ID, SVL) %>%
          filter(!is.na(SVL)) %>%
@@ -157,7 +185,7 @@ o_data <- svl_site_input %>%
 
 
 
-#select the env columns from the matrix to use with ostats output
+#select the env columns from the matrix to use with ostats output (cold probably get rid omany more in this data set...)
 o_env <- svl_site_input %>%
          dplyr::select(-SITE, -USNM ,-ID, -SVL,-tax_Site)
 
@@ -188,7 +216,7 @@ sal_output<-ostats_output%>%
               left_join(.,unique(o_env), by = "SITE2") #join site env data to ostats_output
 
 
-####bioclim for these sites
+####bioclim for these sites####
 
 library(raster)
 library(sp)
@@ -206,13 +234,14 @@ coords <- sal_output %>%
 
 values <- extract(r,coords[,2:1])
 
-clim <- cbind.data.frame(coordinates(points),values,sal_output$SITE2)
+clim <- cbind.data.frame(coords,values,sal_output$SITE2)
 colnames(clim)[5]<-"SITE2"
 
 
 
 #join new climte data with sal_out
 sal_results<-clim%>%
+            dplyr::select(-Latitude, -Longitude)%>%
             left_join(.,sal_output, by = "SITE2")%>%
             mutate(Temp = Temp / 10)
 
@@ -230,25 +259,19 @@ svl_overlap<-sal_results #output from above if you don't call it in
 #svl_overlap<-read.csv("outputs/ostats_outputv1.csv")#all data with only 1 species sites removed
 
 
-#remove na values for overlap norms. these are sites with only 1 species but not 
-#designated as so from the richness estimate  "observed" because less than 5 individuals of a species
-overlap2<-svl_overlap%>%
-          drop_na(overlaps_norm)
-
-
 
 
 #rename variables so it is easier...
-overlap2 = dplyr::rename(overlap2, Overlap = overlaps_norm,
-                    Richness = Observed, Precipitation=Prec, Temperature=Temp)
+overlap2 = dplyr::rename(svl_overlap, Overlap = overlaps_norm,
+                    Richness1 = Observed.x,Richness2 = Observed.y, Precipitation=Prec, Temperature=Temp)
+
+#view data ordered by any variable
+dplyr::select(overlap2,SITE2, Overlap, Richness2)%>%
+  arrange(.,Richness2)
 
 
-dplyr::select(overlap2,SITE2, Overlap, Richness)%>%
-  arrange(.,Richness)
-
-#run some models...
 #run some exploratory models...
-mod1<-lm(Richness~Overlap, data=overlap2)
+mod1<-lm(Richness1~Overlap, data=overlap2)
 mod2<-lm(Richness~Temperature, data=overlap2)
 mod3<-lm(Richness~Precipitation, data=overlap2)
 mod4<-lm(Richness~Temperature*Precipitation, data=overlap2)
@@ -257,13 +280,13 @@ mod6<-lm(Overlap~Precipitation, data=overlap2)
 mod7<-lm(Overlap~Temperature+Precipitation, data=overlap2)
 
 #look at models
-summary(mod7)
+summary(mod1)
 plot(mod1)
 car::vif(mod6)
 cor(mam_output$logweight,mam_output$field_mean_annual_temperature_C)
 
 #Plot univariate relationships
-ggplot(overlap2, aes(x=Overlap, y=Richness)) + 
+ggplot(overlap2, aes(x=Overlap, y=Richness1)) + 
 geom_point()+
 geom_smooth(method=lm)+
 xlab("Overlap")+
@@ -273,7 +296,7 @@ ylab ("Richness")
 ####Work on plotting
 #get inputs for the plot function
 #sites2use<-c(unique(o_data$SITE2))
-sites2use<-c("4068_3900" ,"5719_4030" ,"5920_3740")
+sites2use<-c("1473_3350" ,"6398_3600" ,"3041_3900")
 plots <- o_data$SITE2
 sp <- o_data$ID
 traits <- o_data$log_SVL
@@ -281,4 +304,42 @@ traits <- o_data$log_SVL
 Ostats_plot(plots = plots, sp = sp, traits = traits,
             overlap_dat = overlap_sal,
             use_plots = sites2use, means = TRUE)
+
+
+
+
+
+
+####piecewise SEM####
+#models
+
+#predicting species richness (Observed)
+rich<-lm(Richness1~Overlap+Temperature+Precipitation, data=overlap2)
+plot(rich)
+summary(rich)
+car::vif(rich)
+
+#predicting niche overlap
+niche_overlap<-lm(Overlap~Temperature+Precipitation, data=overlap2)
+plot(niche_overlap)
+summary(niche_overlap)
+car::vif(niche_overlap)
+
+####Path model using psem
+model1<-psem(rich,niche_overlap)
+summary(model1, .progressBar = F)
+AIC(model1)
+
+#save out coefficients table
+mod1_coefs<-coefs(model1)
+
+
+#write.csv(mod1_coefs, file = "results/mpd_model.csv", quote = FALSE, row.names = F)
+
+plot(model1)
+
+AIC(model1)
+plot(model1, node_attrs = list(
+  shape = "rectangle", color = "black",
+  fillcolor = "orange", x = 3, y=1:12))
 
