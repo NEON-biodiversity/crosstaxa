@@ -27,7 +27,7 @@ setwd("G:/Shared drives/MacrosystemsBiodiversity/data/organism/L0/non_neon_obser
 sal_SVL<-read.csv("MasterSVLData.csv")
 head(sal_SVL)
 
-
+unique(sal_SVL$ID)
 #site data
 sal_site<-read.csv("sitedata.csv")
 head(sal_site)
