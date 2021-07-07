@@ -12,6 +12,8 @@ library(ggplot2)
 library(iNEXT)
 library(piecewiseSEM)
 library(effects)
+library(taxize)
+
 
 #loading R data file for maps data
 
@@ -28,7 +30,7 @@ rm(maps.data)#why remove maps data because its o big and will slow things down? 
 head(dat)
 
 #this is the individual level data
-dat$band#this is the individual level data
+dat$band
 
 
 #cHANGE SPECIES CODE THAT NOW DIFFER
@@ -41,63 +43,62 @@ name_fix<-dat$band %>%
 
 #add species taxonomic information
 sci_name<-read.csv("bird_taxa_list.csv")
-spec_miss<-("COGD" "GRAJ" "ORBI" "WESJ")#species missing from taxa list
+
+
+
+#spec_miss<-("COGD" "GRAJ" "ORBI" "WESJ")#species missing from taxa list
 
 #select names from taxa list that are in data
-testb<-sci_name%>%
-       filter(SPEC %in%name_fix$SPEC)
+select_tax<-sci_name%>%
+            filter(SPEC %in%name_fix$SPEC)
 
 #compare species lists: all good
-as.data.frame(cbind(testb$SPEC[order(testb$SPEC)],unique(name_fix$SPEC)[order(unique(name_fix$SPEC))]))
+as.data.frame(cbind(select_tax$SPEC[order(select_tax$SPEC)],unique(name_fix$SPEC)[order(unique(name_fix$SPEC))]))
 
 #join taxa names to data
 correct_names<-name_fix%>%
-               left_join(., testb, by = "SPEC")%>%
+               left_join(., select_tax, by = "SPEC")%>%
                dplyr::select(-SP,-CONF,-SPEC6,-CONF6)
 
-#elton trait data, going to gelan family and order info...
-family_order<-read.csv("Elton_Bird.csv")%>%
-              dplyr::rename(SCINAME = Scientific)
 
-test_fam<-family_order%>%
-          filter(SCINAME %in%correct_names$SCINAME)
+#GET FAMILY AND ORDER DATA FOR EACH SPECIES
+#exampled_df2 <- tax_name(select_tax$SCINAME, get = c('family','order'), db = 'ncbi')
+#write.csv(exampled_df2, "family_order_all_taxa.csv")
+
+fam_ord<-read.csv("family_order_all_taxa.csv")
+
+#join family and order names to data
+full_tax_data<-correct_names%>%
+               left_join(., fam_ord, by = "SCINAME")
+  
 
 #station data
-dat$stations
+station_dat<-dat$stations
 
 
 #############################################################################
 #data formatting for OSTATS 
-levels(dat$band$AGE)
+
 
 #works to get species counts per site (combining across years for now) and filter out sites with < 2 species
 #bird_site_filt<-ddply(dat$band, .(STATION), mutate,  count = length(unique(SPEC)))%>%#get species counts per station (over time)
                       #mutate(Spec_Stat = paste(SPEC, STATION, sep = "_"))%>% #Spec_Stat is the station/species combo 
                       #filter(count >1)
 
-#head(bird_site_filt)
-
-
-bird_site_filt<-dat$band%>%
+bird_site_filt<-full_tax_data%>%
+                filter(order == 'Passeriformes')%>%
                 filter(AGE %in% c(1,5,6,7,8 ))%>%#TAKE ONLY ADULT BIRDS (i.e., age = 1,5,6,7,8);seems like thats all of them
                 mutate(year=year(DATE))%>%#make a year column
                 mutate(Spec_Stat = paste(SPEC, STATION, sep = "_"))#Spec_Stat is the station/species combo 
               
-
-#most species rich site
-BSOL<-dat$band%>%
-      filter(STATION== "BSOL")
-BSOL%>%
-  count("SPEC")
-
 
 
 ###calculating richness as a covariate
 #note that this is calculating richness before removing site/taxa combos with <5 individuals --talk about with group
 # generate vectors of abundances by species for each site
 birdtables <- bird_site_filt  %>% 
-  group_by(STATION) %>% 
-  do(t = table(.$SPEC))
+              group_by(STATION) %>% 
+              do(t = table(.$SPEC))
 
 # Name the list of vectors
 mamx <- lapply(birdtables$t, as.numeric)
@@ -105,7 +106,7 @@ names(mamx) <- birdtables$STATION
 
 # Calculate asymptotic richness estimator
 set.seed(46545)
-richness_estimators <- iNEXT(x=mamx, q=0, datatype='abundance', size = c(5,10,50,100,500))
+richness_estimators <- iNEXT(x=mamx, q=0, datatype='abundance', size = c(5,10,50,100,500,1000))
 
 #Estimtes for each site (species rich, shannon, simpson)
 richness_estimators$AsyEst
@@ -135,7 +136,6 @@ abund_filt<-bird_dat%>%
 high_abun_birds<-bird_dat[bird_dat$Spec_Stat %in% abund_filt$Spec_Stat, ]%>%     
                  filter(Observed >1)
 
-write.csv(high_abun_birds,"ben_birds_forQ.csv")
 
 ####calculate species richness again with species/site combos with less that 5 removed####
 # generate vectors of abundances by species for each site
@@ -157,25 +157,26 @@ richness_estimators$AsyEst
 
 #just grab richness by site (or grab other diversity indicators?)
 asymptotic_richness2 <- richness_estimators$AsyEst %>% 
-  filter(Diversity == 'Species richness') 
+                        filter(Diversity == 'Species richness') 
 
 #name site id "STATION" to match other data frame
 asymptotic_richness2$STATION <- factor(asymptotic_richness2$Site, levels=asymptotic_richness2$Site[order(asymptotic_richness2$Observed)])#make siteID column to left join
 
 #join species richness to data frame
-#bird_dat<-high_abun_birds%>% this needs anew name for later that will go through ostats...
-  left_join(., asymptotic_richness2, by= "STATION")
+bird_dat_high<-high_abun_birds%>% #this needs anew name for later that will go through ostats...
+               left_join(., asymptotic_richness2, by= "STATION")
 
 #prep data for OSTATs----
 
 #subset number of stations to run in reasonable time... 
 sub_station<-c("VINS","PATT","FTGI")
 
-dat_in <- high_abun_birds %>%
-          filter(STATION %in% sub_station)%>% 
-          select(STATION, SPEC, WEIGHT) %>%
+dat_in <- bird_dat_high %>%
+          #filter(STATION %in% sub_station)%>% 
+          dplyr::select(STATION, SPEC, WEIGHT,WING) %>%
           filter(!is.na(WEIGHT)) %>%
-          mutate(log_WEIGHT = log10(WEIGHT))
+          mutate(log_WEIGHT = log10(WEIGHT))%>%
+          mutate(log_WING = log10(WING))
 
 
 
@@ -193,13 +194,9 @@ head(dat_in)
 Ostats_example3 <- Ostats(traits = as.matrix(dat_in[,'log_WEIGHT']),
                          sp = factor(dat_in$SPEC),
                          plots = factor(dat_in$STATION),
-                         output = "mean",
+                         density_args = list(bw = 0.05),
                          nperm = 1)
-?Ostats
-Ostats_example3
 
-
-head(Ostats_example3$overlaps_norm)
 
 #make ostats a data frame
 ostats_output<-as.data.frame(Ostats_example3)
@@ -211,33 +208,90 @@ bird_output<-ostats_output%>%
             left_join(., asymptotic_richness, by= "STATION")%>% #join site env data to ostats_output
             drop_na(log_WEIGHT)
 
-#need code here to save out OSTATS
-#write.csv(bird_output,"bird_overlap_6_15.csv")
 
+
+
+####bioclim for these sites####
+#filter station data for stations in final out put
+
+stat_dat<-station_dat%>%
+          filter(STATION %in% bird_output$STATION)
+
+
+library(raster)
+library(sp)
+
+r <- getData("worldclim",var="bio",res=10)
+
+r <- r[[c(1,12)]]
+names(r) <- c("Temp","Prec")
+
+
+coords <- stat_dat %>%
+          dplyr::select(.,DECLAT, DECLNG)%>%
+          mutate_if(is.character, as.numeric)
+
+
+values <- extract(r,coords[,2:1])
+
+clim <- cbind.data.frame(coords,values,stat_dat$ELEV,bird_output$STATION)
+colnames(clim)[5]<-"Elevation"
+colnames(clim)[6]<-"STATION"
+
+
+#join new climte data with sal_out
+bird_results<-clim%>%
+              left_join(.,bird_output, by = "STATION")%>%
+              mutate(Temp = Temp / 10)
+
+
+#need code here to save out OSTATS
+#write.csv(bird_results,"bird_overlap_passeriformes.csv")
 
 ####Analyze ostats output####
+#call in data frame if not created above
 
-#output from above if you don't call it in
-bird_output<-read.csv("bird_overlap_6_15.csv", row=1)#all data with only 1 species sites removed
+#join species richness 2 to data frame and rename
+final_output<-bird_results%>%
+              left_join(., asymptotic_richness2, by= "STATION")%>%
+              dplyr::rename(., Overlap = log_WEIGHT,
+              Richness1 = Observed.x,Richness2 = Observed.y, Precipitation=Prec, Temperature=Temp)
 
-#join species richness 2 to data frame
-test<-bird_output%>%
-      left_join(., asymptotic_richness2, by= "STATION")
-
-range<-select(test,STATION, log_WEIGHT, Observed.y)%>%
+#look at outpust to explore
+range<-select(final_output,STATION, log_WEIGHT, Observed.y)%>%
        arrange(.,Observed.y)
 
 #run some models...
-mod<-lm(Observed.y~log_WEIGHT, data=test)
-summary(mod)
-plot(mod)
-car::vif(mod)
+#subset results to poke around...
+#final_output2<-final_output%>%
+               #filter(Richness1>5)%>%
+               #filter(Overlap<0.4)
 
-#long names for vars in model (cut/paste)
-field_mean_canopy_height_m++field_mean_annual_temperature_C+field_mean_annual_precipitation_mm
+summary(mod1<-lm(Richness1~Overlap, data=final_output2))
+summary(mod2<-lm(Richness1~Temperature, data=final_output))
+summary(mod3<-lm(Richness1~Precipitation, data=final_output))
+summary(mod4<-lm(Richness2~Temperature*Precipitation, data=final_output))
+summary(mod5<-lm(Overlap~Temperature, data=final_output))
+summary(mod6<-lm(Overlap~Precipitation, data=final_output))
+summary(mod7<-lm(Overlap~Temperature+Precipitation, data=final_output))
+summary(mod5<-lm(Overlap~Elevation, data=final_output))
+#look at models
+summary(mod1)
+plot(mod1)
+car::vif(mod6)
+cor(mam_output$logweight,mam_output$field_mean_annual_temperature_C)
 
 #Plot univariate relationships
-ggplot(test, aes(x=log_WEIGHT, y=log(Observed.x)) )+ 
+ggplot(final_output2, aes(x=Overlap, y=log(Richness1)) )+ 
+  geom_point()+
+  geom_smooth(method=lm)+
+  #geom_smooth(method= "loess")+
+  xlab("Overlap")+
+  ylab ("Richness")
+
+
+#Plot univariate relationships
+ggplot(test, aes(x=log(log_WEIGHT), y=Observed.y) )+ 
   geom_point()+
   geom_smooth(method=lm)+
   #geom_smooth(method= "loess")+
@@ -292,7 +346,7 @@ ostats_bird_output<-as.data.frame(Ostats_example)
 
 #make a data frame of site richness
 site_richness<-dat_in %>% 
-  distinct(STATION, count)
+               distinct(STATION, count)
 
 #give Ostats output a site id column from the current rownames
 
