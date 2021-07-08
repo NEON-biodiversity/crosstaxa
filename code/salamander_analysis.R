@@ -142,8 +142,8 @@ length(unique(svl_site_input$SITE2))
 ####recalculating richness as a covariate after removing species/site combos with less than 5 individuals (i.e., species richness of actual species we have itv for)
 
 salTables2 <- svl_site_input  %>% 
-  group_by(SITE2) %>% 
-  do(t = table(.$ID))
+              group_by(SITE2) %>% 
+              do(t = table(.$ID))
 
 # Name the list of vectors
 mamx <- lapply(salTables2$t, as.numeric)
@@ -186,7 +186,7 @@ o_data <- svl_wRich2 %>%
 
 
 #select the env columns from the matrix to use with ostats output (cold probably get rid omany more in this data set...)
-o_env <- svl_site_input %>%
+o_env <- svl_wRich2 %>%
          dplyr::select(-SITE, -USNM ,-ID, -SVL,-tax_Site)
 
 # Group the svl data by siteID and taxonID and look at the summary 
@@ -271,7 +271,7 @@ dplyr::select(overlap2,SITE2, Overlap, Richness2)%>%
 
 
 #run some exploratory models...
-mod1<-lm(Richness1~Overlap, data=overlap2)
+summary(mod1<-lm(Richness1~Overlap, data=overlap2))
 mod2<-lm(Richness~Temperature, data=overlap2)
 mod3<-lm(Richness~Precipitation, data=overlap2)
 mod4<-lm(Richness~Temperature*Precipitation, data=overlap2)
