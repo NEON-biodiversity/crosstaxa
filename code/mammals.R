@@ -23,7 +23,7 @@ load("DP1.10072.001.Rdata")
 
 #read in the NEON taxonomy data for all species from g-drive and select relevant columns
 tax<-read.csv("../neon_taxa/OS_TAXON_SMALL_MAMMAL-20200129T161511.csv")%>%
-     select(taxonID, acceptedTaxonID,vernacularName,taxonProtocolCategory,taxonRank,order,family,subfamily,tribe,genus)
+     dplyr::select(taxonID, acceptedTaxonID,vernacularName,taxonProtocolCategory,taxonRank,order,family,subfamily,tribe,genus)
 
 #filter taxa list keeping targeted rodents with species designations (Note that T&E species do not have sp designations)
 tax_reduced<-tax%>%
@@ -127,14 +127,14 @@ sub_Site<-c("GUAN", "DEJU")#sites with one species to remove
 
 o_stat_mam <- high_abun_mam %>%
               filter(!siteID %in% sub_Site)%>% #remove sites with one species because it messes up plotting
-              select(siteID, scientificName, logweight) %>%
+              dplyr::select(siteID, scientificName, logweight) %>%
               filter(!is.na(logweight)) 
 
 #write.csv(o_stat_mam, "../../L1/cross_taxa_ITV/mammal/o_stat_mam.csv")
 
 #select the env columns from the matrix to use with ostats output (need site level vars here...)
 site_rich <- high_abun_mam %>%#take the site richness and site id to join to env below
-             select(siteID,Observed)
+             dplyr::select(siteID,Observed)
 
 #join site richness to other env. vars
 env<-site_env[site_env$siteID %in% o_stat_mam$siteID, ]%>%
@@ -186,15 +186,15 @@ mam_output<-ostats_output%>%
 #ostats output from above if you don't call it in
 
 #view data in different orders
-select(mam_output,siteID, logweight, Observed)%>%
+dplyr::select(mam_output,siteID, logweight, Observed)%>%
         arrange(.,logweight)
 
-select(mam_output,siteID, field_mean_annual_precipitation_mm,field_mean_annual_temperature_C,logweight, Observed)%>%
-  arrange(.,Observed)
+dplyr::select(mam_output,siteID, field_mean_annual_precipitation_mm,field_mean_annual_temperature_C,logweight, Observed)%>%
+  arrange(.,logweight,field_mean_annual_precipitation_mm)
 
 
 #run some exploratory models...
-mod1<-lm(Observed~logweight, data=mam_output)
+summary(mod1<-lm(Observed~logweight, data=mam_output))
 mod2<-lm(logweight~field_mean_annual_temperature_C, data=mam_output)
 mod3<-lm(Observed~field_mean_annual_temperature_C, data=mam_output)
 mod4<-lm(logweight~field_mean_annual_precipitation_mm*field_mean_annual_temperature_C, data=mam_output)
@@ -247,9 +247,9 @@ p_rich = mutate(rich_eff_df, Temperature = as.factor(temp)) %>%
   colorspace::scale_color_discrete_sequential(palette = "Viridis") +
   cowplot::theme_cowplot() +
   theme(legend.position = c(0.3, 0.8))
-ggsave("../../L2/cross_taxa/figs/mammal/mammalrich_interaction.pdf", plot = p_rich, width = 7, height = 5)
+#ggsave("../../L2/cross_taxa/figs/mammal/mammalrich_interaction.pdf", plot = p_rich, width = 7, height = 5)
 
-G:\Shared drives\MacrosystemsBiodiversity\data\organism\L2\cross_taxa\figs\mammal
+
 
 #predicting bodysize overlap (logweight)
 niche_overlap<-lm(logweight~prep_mm*temp, data=mam_output)
@@ -271,7 +271,7 @@ p_niche = mutate(niche_eff_df, Temperature = as.factor(temp)) %>%
   colorspace::scale_color_discrete_sequential(palette = "Viridis") +
   cowplot::theme_cowplot() +
   theme(legend.position = c(0.1, 0.8))
-ggsave("../../L2/cross_taxa/figs/mammal/niche_interaction.pdf", plot = p_niche, width = 7, height = 5)
+#ggsave("../../L2/cross_taxa/figs/mammal/niche_interaction.pdf", plot = p_niche, width = 7, height = 5)
 
 
 ####ostats distribution overlap plots (Q working to reorder)####
