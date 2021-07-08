@@ -245,11 +245,6 @@ bird_results<-clim%>%
               mutate(Temp = Temp / 10)
 
 
-#need code here to save out OSTATS
-#write.csv(bird_results,"bird_overlap_passeriformes.csv")
-
-####Analyze ostats output####
-#call in data frame if not created above
 
 #join species richness 2 to data frame and rename
 final_output<-bird_results%>%
@@ -257,23 +252,29 @@ final_output<-bird_results%>%
               dplyr::rename(., Overlap = log_WEIGHT,
               Richness1 = Observed.x,Richness2 = Observed.y, Precipitation=Prec, Temperature=Temp)
 
+#need code here to save out OSTATS
+write.csv(final_output,"bird_overlap_passeriformes.csv")
+
+
+####Analyze ostats output####
+#call in data frame if not created above
 #look at outpust to explore
 range<-select(final_output,STATION, log_WEIGHT, Observed.y)%>%
        arrange(.,Observed.y)
 
 #run some models...
 #subset results to poke around...
-#final_output2<-final_output%>%
-               #filter(Richness1>5)%>%
+final_output2<-final_output%>%
+               filter(Richness1 %in% (20:25) )%>%
                #filter(Overlap<0.4)
 
-summary(mod1<-lm(Richness1~Overlap, data=final_output2))
+summary(mod1<-lm(Richness1~Overlap, data=final_output))
 summary(mod2<-lm(Richness1~Temperature, data=final_output))
 summary(mod3<-lm(Richness1~Precipitation, data=final_output))
 summary(mod4<-lm(Richness2~Temperature*Precipitation, data=final_output))
 summary(mod5<-lm(Overlap~Temperature, data=final_output))
 summary(mod6<-lm(Overlap~Precipitation, data=final_output))
-summary(mod7<-lm(Overlap~Temperature+Precipitation, data=final_output))
+summary(mod7<-lm(Overlap~Temperature*Precipitation, data=final_output))
 summary(mod5<-lm(Overlap~Elevation, data=final_output))
 #look at models
 summary(mod1)
@@ -282,29 +283,12 @@ car::vif(mod6)
 cor(mam_output$logweight,mam_output$field_mean_annual_temperature_C)
 
 #Plot univariate relationships
-ggplot(final_output2, aes(x=Overlap, y=log(Richness1)) )+ 
+ggplot(final_output, aes(x=Overlap, y=Richness2) )+ 
   geom_point()+
   geom_smooth(method=lm)+
   #geom_smooth(method= "loess")+
   xlab("Overlap")+
   ylab ("Richness")
-
-
-#Plot univariate relationships
-ggplot(test, aes(x=log(log_WEIGHT), y=Observed.y) )+ 
-  geom_point()+
-  geom_smooth(method=lm)+
-  #geom_smooth(method= "loess")+
-  xlab("Overlap")+
-  ylab ("Richness")
-
-
-
-
-
-
-
-
 
 
 
@@ -312,7 +296,7 @@ ggplot(test, aes(x=log(log_WEIGHT), y=Observed.y) )+
 
 #inputs for "Ostats_plot" function
 
-sites2use<-c("VINS", "PATT", "FTGI") #pick specific sites or
+sites2use<-c("MR25", "GSMI", "NAT1") #pick specific sites or
 #sites2use<-unique(dat_in$STATION)# if you filter above then use this
 plots <- dat_in$STATION
 sp <- dat_in$SPEC
@@ -323,68 +307,27 @@ Ostats_plot(plots = plots, sp = sp, traits = traits,
             overlap_dat = Ostats_example3,
             use_plots = sites2use, means = TRUE)
 
+####piecewise SEM####
+#models
 
+#predicting species richness (Observed)
+rich<-lm(Richness1~Overlap+Temperature+Precipitation, data=final_output)
+plot(rich)
+summary(rich)
+car::vif(rich)
 
-#sites of interest
+#predicting niche overlap
+niche_overlap<-lm(Overlap~Temperature+Precipitation, data=final_output)
+plot(niche_overlap)
+summary(niche_overlap)
+car::vif(niche_overlap)
 
-#most species rich site
-BSOL<-dat$band%>%
-  filter(STATION== "VINS")
-BSOL%>%
-  count("SPEC")
+####Path model using psem
+model1<-psem(rich,niche_overlap)
+summary(model1, .progressBar = F)
+AIC(model1)
 
+#save out coefficients table
+mod1_coefs<-coefs(model1)
 
-#############################################################################3
-#alternative way to plot with inputs included
-Ostats_plot(plots = dat_in$STATION, sp = dat_in$SPEC, traits = dat_in$log_WEIGHT,
-            overlap_dat = Ostats_example,
-            use_plots = sites2use, means = TRUE)
-
-
-#make ostats a data frame for further analysis
-ostats_bird_output<-as.data.frame(Ostats_example)
-
-#make a data frame of site richness
-site_richness<-dat_in %>% 
-               distinct(STATION, count)
-
-#give Ostats output a site id column from the current rownames
-
-#****need to add in other env. vars with code below
-
-final_output<-ostats_bird_output%>%
-  mutate(STATION= row.names(ostats_output))%>%#give Ostats output a site id column from the current rownames
-  left_join(.,site_richness, by = "STATION") #join site data to ostats_output
-
-#rename(final_output, SITE = STATION)
-
-mod<-lm(overlaps_norm~count, data=final_output)
-summary(mod)
-
-plot(final_output$count,final_output$overlaps_norm)
-#need code here to save out OSTATS
-
-
-
-
-
-
-#ostats plots
-
-#inputs for "Ostats_plot" function
-#sites2use<-c("0004", "0005", "0006")
-sites2use<-unique(dat_in$STATION)
-plots <- dat_in$STATION
-sp <- dat_in$SPEC
-traits <- dat_in$log_WEIGHT
-
-#plot distributions and means
-Ostats_plot(plots = plots, sp = sp, traits = traits,
-            overlap_dat = Ostats_example,
-            use_plots = sites2use, means = TRUE)
-
-#alternative way to plot with inputs included
-Ostats_plot(plots = dat_in$STATION, sp = dat_in$SPEC, traits = dat_in$log_WEIGHT,
-            overlap_dat = Ostats_example,
-            use_plots = sites2use, means = TRUE)
 
