@@ -25,11 +25,11 @@ load("DP1.10072.001.Rdata")
 tax<-read.csv("../neon_taxa/OS_TAXON_SMALL_MAMMAL-20200129T161511.csv")%>%
      dplyr::select(taxonID, acceptedTaxonID,vernacularName,taxonProtocolCategory,taxonRank,order,family,subfamily,tribe,genus)
 
-#filter taxa list keeping targeted rodents with species designations (Note that T&E species do not have sp designations)
-tax_reduced<-tax%>%
+#filter taxa list keeping targeted rodents with species or subspecies designations (Note that T&E species do not have sp designations)
+tax_reduced2<-tax%>%
              filter(order == 'Rodentia',taxonProtocolCategory == 'target', taxonRank%in% c('species','subspecies'))#keeping target, rodents with species designation
 
-#read in NEON site environmental data
+#read in NEON site environmental data from my local drive
 site_env<-read.csv("C:/Users/bbaiser/Documents/GitHub/ITV/crosstaxa/data/NEON_Field_Site_Metadata_20210226_0_mod.csv")%>%
           dplyr::rename (.,siteID = field_site_id)
 
